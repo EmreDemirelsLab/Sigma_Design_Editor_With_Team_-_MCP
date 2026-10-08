@@ -1,0 +1,9 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sigma yardımcısı</title><link rel="stylesheet" href="style.css"></head><body>
+<header><span class="badge">Σ</span><div><h1>Sigma</h1><p>Tasarla. Birlikte geliştir.</p></div></header>
+<main><label for="token">AI erişim anahtarı</label><input id="token" type="password" autocomplete="off" placeholder="Yöneticinin verdiği kişisel anahtar"><small>Anahtar yalnızca bu panel açıkken bellekte tutulur.</small>
+<label for="prompt">Ne tasarlayalım?</label><textarea id="prompt" maxlength="6000" rows="5" placeholder="Türkçe bir otel rezervasyon ekranı. Mobil, sade ve sıcak renkler…"></textarea>
+<div class="row"><button id="context" class="secondary">Seçimi bağlama ekle</button><button id="generate">Oluştur</button></div>
+<p id="contextStatus">Seçim paylaşılmadı.</p><p id="status" role="status" aria-live="polite">Yeni ekran oluşturmak için isteğini yaz.</p>
+<section id="preview" hidden><div class="row"><h2>Önizleme</h2><span id="count"></span></div><svg id="canvas" xmlns="http://www.w3.org/2000/svg" aria-label="Tasarım önizlemesi"></svg><button id="apply">Tuvale ekle</button><small>Yeni, düzenlenebilir bir ekran ekler. Geri al ile kaldırabilirsin.</small></section>
+<details><summary>MCP ile çalışmak</summary><p>Hesap → Integrations → MCP Server bölümünden bağlantıyı aç. Dosyada File → MCP Server → Connect seç. Claude Code veya Codex ile mevcut tasarımları düzenleyebilirsin.</p></details>
+<p class="note">Oluştururken isteğin ve eklediğin seçim bilgileri sunucuda seçilen AI sağlayıcısına gönderilir.</p></main><script type="module" src="ui.js"></script></body></html>

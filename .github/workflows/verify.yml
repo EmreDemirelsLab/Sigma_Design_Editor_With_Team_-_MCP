@@ -1,0 +1,16 @@
+name: Verify Sigma
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm run build && npm run check && npm test
+      - run: python3 scripts/setup.py && python3 scripts/preflight.py
+      - run: docker compose config --quiet
+      - run: docker compose build sigma-assistant
+      - name: Validate Caddy configuration
+        run: docker run --rm -e SIGMA_SITE_ADDRESS=:80 -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2.10-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile

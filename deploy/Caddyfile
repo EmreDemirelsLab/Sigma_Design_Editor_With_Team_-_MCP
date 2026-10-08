@@ -1,0 +1,19 @@
+{
+    email {$ACME_EMAIL:admin@example.com}
+}
+{$SIGMA_SITE_ADDRESS:localhost} {
+    request_body {
+        max_size 350MB
+    }
+    handle_path /sigma/* {
+        reverse_proxy sigma-assistant:3100
+    }
+    handle {
+        reverse_proxy penpot-frontend:8080 {
+            flush_interval -1
+        }
+    }
+    header Referrer-Policy "no-referrer"
+    header X-Content-Type-Options "nosniff"
+    # No access log: MCP URLs contain a userToken query parameter.
+}

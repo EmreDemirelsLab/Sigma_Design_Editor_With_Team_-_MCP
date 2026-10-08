@@ -1,0 +1,1 @@
+{"name":"Sigma Design Assistant","description":"Sade tasarım yardımcısı: AI ile düzenlenebilir ekran oluştur, önizle ve tuvale ekle.","version":2,"code":"plugin.js","icon":"icon.svg","permissions":["content:read","content:write"]}

@@ -1,0 +1,190 @@
+# Adapted from Penpot 2.18.3 official Compose; see vendor/penpot.
+networks:
+  penpot: null
+volumes:
+  penpot_postgres_v15: null
+  penpot_assets: null
+  caddy_data: {}
+  caddy_config: {}
+services:
+  penpot-frontend:
+    image: penpotapp/frontend:${PENPOT_VERSION:-2.18.3}
+    restart: always
+    ports:
+    - 127.0.0.1:9001:8080
+    volumes:
+    - penpot_assets:/opt/data/assets
+    depends_on:
+    - penpot-backend
+    - penpot-admin-console
+    - penpot-mcp
+    - penpot-exporter
+    networks:
+    - penpot
+    environment:
+      PENPOT_PUBLIC_URI: ${PENPOT_PUBLIC_URI:?Run setup first}
+      PENPOT_HTTP_SERVER_MAX_BODY_SIZE: 367001600
+      PENPOT_HTTP_SERVER_MAX_MULTIPART_BODY_SIZE: 367001600
+      PENPOT_FLAGS: ${PENPOT_FLAGS:?Run setup first}
+      PENPOT_ADMIN_CONSOLE_URI: http://penpot-admin-console:3000
+  penpot-backend:
+    image: penpotapp/backend:${PENPOT_VERSION:-2.18.3}
+    restart: always
+    volumes:
+    - penpot_assets:/opt/data/assets
+    depends_on:
+      penpot-postgres:
+        condition: service_healthy
+      penpot-valkey:
+        condition: service_healthy
+    networks:
+    - penpot
+    environment:
+      PENPOT_DATABASE_URI: postgresql://penpot-postgres/penpot
+      PENPOT_DATABASE_USERNAME: penpot
+      PENPOT_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?Run setup first}
+      PENPOT_SECRET_KEY: ${PENPOT_SECRET_KEY:?Run setup first}
+      PENPOT_HTTP_SERVER_MAX_BODY_SIZE: 367001600
+      PENPOT_HTTP_SERVER_MAX_MULTIPART_BODY_SIZE: 367001600
+      PENPOT_PUBLIC_URI: ${PENPOT_PUBLIC_URI:?Run setup first}
+      PENPOT_FLAGS: ${PENPOT_FLAGS:?Run setup first}
+      PENPOT_ADMIN_CONSOLE_URI: http://penpot-admin-console:3000
+      PENPOT_REDIS_URI: redis://penpot-valkey/0
+      PENPOT_OBJECTS_STORAGE_BACKEND: fs
+      PENPOT_OBJECTS_STORAGE_FS_DIRECTORY: /opt/data/assets
+      PENPOT_TELEMETRY_ENABLED: 'false'
+      PENPOT_TELEMETRY_REFERER: compose
+      PENPOT_SMTP_DEFAULT_FROM: ${SMTP_DEFAULT_FROM:-no-reply@localhost}
+      PENPOT_SMTP_DEFAULT_REPLY_TO: ${SMTP_DEFAULT_REPLY_TO:-no-reply@localhost}
+      PENPOT_SMTP_HOST: ${SMTP_HOST:-penpot-mailcatch}
+      PENPOT_SMTP_PORT: ${SMTP_PORT:-1025}
+      PENPOT_SMTP_USERNAME: ${SMTP_USERNAME:-}
+      PENPOT_SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      PENPOT_SMTP_TLS: ${SMTP_TLS:-false}
+      PENPOT_SMTP_SSL: ${SMTP_SSL:-false}
+  penpot-admin-console:
+    image: penpotapp/admin-console:${PENPOT_VERSION:-2.18.3}
+    restart: always
+    depends_on:
+      penpot-postgres:
+        condition: service_healthy
+    networks:
+    - penpot
+    environment:
+      PENPOT_DATABASE_URI: postgresql://penpot-postgres/penpot
+      PENPOT_DATABASE_USERNAME: penpot
+      PENPOT_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?Run setup first}
+      PENPOT_SECRET_KEY: ${PENPOT_SECRET_KEY:?Run setup first}
+      PENPOT_PUBLIC_URI: ${PENPOT_PUBLIC_URI:?Run setup first}
+      PENPOT_INTERNAL_URI: http://penpot-frontend:8080
+  penpot-mcp:
+    image: penpotapp/mcp:${PENPOT_VERSION:-2.18.3}
+    restart: always
+    networks:
+    - penpot
+  penpot-exporter:
+    image: penpotapp/exporter:${PENPOT_VERSION:-2.18.3}
+    restart: always
+    depends_on:
+      penpot-valkey:
+        condition: service_healthy
+    networks:
+    - penpot
+    environment:
+      PENPOT_PUBLIC_URI: ${PENPOT_PUBLIC_URI:?Run setup first}
+      PENPOT_SECRET_KEY: ${PENPOT_SECRET_KEY:?Run setup first}
+      PENPOT_FLAGS: ${PENPOT_FLAGS:?Run setup first}
+      PENPOT_INTERNAL_URI: http://penpot-frontend:8080
+      PENPOT_REDIS_URI: redis://penpot-valkey/0
+  penpot-postgres:
+    image: postgres:15
+    restart: always
+    stop_signal: SIGINT
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U penpot
+      interval: 2s
+      timeout: 10s
+      retries: 5
+      start_period: 2s
+    volumes:
+    - penpot_postgres_v15:/var/lib/postgresql/data
+    networks:
+    - penpot
+    environment:
+      POSTGRES_INITDB_ARGS: --data-checksums
+      POSTGRES_DB: penpot
+      POSTGRES_USER: penpot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run setup first}
+  penpot-valkey:
+    image: valkey/valkey:8.1
+    restart: always
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - valkey-cli ping | grep PONG
+      interval: 1s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+    networks:
+    - penpot
+    environment:
+    - VALKEY_EXTRA_FLAGS=--maxmemory 128mb --maxmemory-policy volatile-lfu
+  penpot-mailcatch:
+    image: sj26/mailcatcher:latest
+    restart: always
+    expose:
+    - '1025'
+    ports:
+    - 127.0.0.1:1080:1080
+    networks:
+    - penpot
+    profiles:
+    - local
+  sigma-assistant:
+    build:
+      context: .
+      dockerfile: apps/assistant/Dockerfile
+    restart: unless-stopped
+    networks:
+    - penpot
+    read_only: true
+    tmpfs:
+    - /tmp
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    env_file:
+    - .env
+    environment:
+      PORT: '3100'
+    healthcheck:
+      test:
+      - CMD
+      - node
+      - -e
+      - fetch('http://localhost:3100/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+    - ${SIGMA_HTTP_PORT:-8080}:80
+    - ${SIGMA_HTTPS_PORT:-8443}:443
+    networks:
+    - penpot
+    env_file:
+    - .env
+    volumes:
+    - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+    - caddy_data:/data
+    - caddy_config:/config
+    depends_on:
+    - penpot-frontend
+    - sigma-assistant
+name: sigma
