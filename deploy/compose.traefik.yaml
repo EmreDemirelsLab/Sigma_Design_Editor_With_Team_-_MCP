@@ -1,0 +1,68 @@
+# Hetzner VPS override: Coolify'ın Traefik proxy'si 80/443'ü tuttuğu için projenin kendi Caddy'si kapatılır,
+# Penpot frontend ve Sigma asistanı Traefik etiketleriyle yayınlanır. Kullanım: .env içinde
+#   COMPOSE_FILE=compose.yaml:deploy/compose.traefik.yaml
+networks:
+  coolify:
+    external: true
+services:
+  caddy:
+    profiles: ["caddy"]
+  penpot-frontend:
+    ports: !reset []
+    networks:
+      - penpot
+      - coolify
+    deploy:
+      resources:
+        limits: { memory: 512m }
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: coolify
+      traefik.http.routers.sigma-penpot.rule: Host(`${SIGMA_SITE_ADDRESS}`)
+      traefik.http.routers.sigma-penpot.entrypoints: https
+      traefik.http.routers.sigma-penpot.tls: "true"
+      traefik.http.routers.sigma-penpot.tls.certresolver: letsencrypt
+      traefik.http.routers.sigma-penpot.priority: "10"
+      traefik.http.routers.sigma-penpot.middlewares: sigma-headers
+      traefik.http.routers.sigma-penpot.service: sigma-penpot
+      traefik.http.services.sigma-penpot.loadbalancer.server.port: "8080"
+      traefik.http.services.sigma-penpot.loadbalancer.responseforwarding.flushinterval: "-1"
+      traefik.http.routers.sigma-penpot-http.rule: Host(`${SIGMA_SITE_ADDRESS}`)
+      traefik.http.routers.sigma-penpot-http.entrypoints: http
+      traefik.http.routers.sigma-penpot-http.middlewares: sigma-redirect
+      traefik.http.routers.sigma-penpot-http.service: sigma-penpot
+      traefik.http.middlewares.sigma-redirect.redirectscheme.scheme: https
+      traefik.http.middlewares.sigma-redirect.redirectscheme.permanent: "true"
+      traefik.http.middlewares.sigma-headers.headers.customresponseheaders.Referrer-Policy: no-referrer
+      traefik.http.middlewares.sigma-headers.headers.customresponseheaders.X-Content-Type-Options: nosniff
+  sigma-assistant:
+    networks:
+      - penpot
+      - coolify
+    deploy:
+      resources:
+        limits: { memory: 256m }
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: coolify
+      traefik.http.routers.sigma-ai.rule: Host(`${SIGMA_SITE_ADDRESS}`) && PathPrefix(`/sigma`)
+      traefik.http.routers.sigma-ai.entrypoints: https
+      traefik.http.routers.sigma-ai.tls: "true"
+      traefik.http.routers.sigma-ai.tls.certresolver: letsencrypt
+      traefik.http.routers.sigma-ai.priority: "20"
+      traefik.http.routers.sigma-ai.middlewares: sigma-strip,sigma-headers
+      traefik.http.routers.sigma-ai.service: sigma-ai
+      traefik.http.services.sigma-ai.loadbalancer.server.port: "3100"
+      traefik.http.middlewares.sigma-strip.stripprefix.prefixes: /sigma
+  penpot-backend:
+    deploy:
+      resources:
+        limits: { memory: 3g }
+  penpot-exporter:
+    deploy:
+      resources:
+        limits: { memory: 1g }
+  penpot-postgres:
+    deploy:
+      resources:
+        limits: { memory: 1g }
