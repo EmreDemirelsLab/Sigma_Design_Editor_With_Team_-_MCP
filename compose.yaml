@@ -187,4 +187,31 @@ services:
     depends_on:
     - penpot-frontend
     - sigma-assistant
+  sigma-mcp-headless:
+    build:
+      context: apps/mcp-headless
+    restart: unless-stopped
+    networks:
+    - penpot
+    read_only: true
+    tmpfs:
+    - /tmp
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    env_file:
+    - .env
+    environment:
+      PENPOT_INTERNAL_URL: http://penpot-frontend:8080
+      MCP_PORT: "4410"
+    ports:
+    - "${SIGMA_MCP_BIND:?Tailscale IP}:4410:4410"
+    depends_on:
+    - penpot-frontend
+    mem_limit: 384m
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
 name: sigma

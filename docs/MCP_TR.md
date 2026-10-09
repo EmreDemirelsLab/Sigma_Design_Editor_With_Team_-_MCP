@@ -28,3 +28,14 @@ npx -y add-mcp -g -n sigma 'URL_FROM_PENPOT_INTEGRATIONS'
 MCP açık/odaklı sayfayı kullanır; bir aktif MCP sekmesi vardır. Sekme askıya alınırsa yeniden odakla ve bağlan. AI ajanı silme dahil değişiklik yapabilir; önce küçük denemeler yap, tasarım geçmişini kullan. Bir ekipte her üyenin kendi MCP anahtarı olmalı.
 
 Kaynak: [Resmi Penpot MCP dokümantasyonu](https://help.penpot.app/mcp/), kontrol 8 Ekim 2026. Gerçek Claude Code/Codex oturumu bu ortamda açılmadı.
+
+
+## Sigma Headless MCP (tarayıcısız)
+
+Resmi MCP açık bir editör sekmesine bağımlıdır; sekme kapanınca veya uyuyunca "No Penpot instance connected" verir. `apps/mcp-headless` bunun yanına, Penpot arka uç API'siyle doğrudan çalışan ikinci bir MCP sunucusu ekler: sekme gerekmez, ajan dosya kimliğiyle her projede çalışır, bir ekranı tek revizyonda kurar (`penpot_batch_create`).
+
+Kurulum: Penpot'ta `enable-access-tokens` bayrağı; `sigma-agent@sigma.local` servis hesabı (kayıt API'si ile), erişim anahtarı `.env` → `SIGMA_AGENT_TOKEN`; hesap `team_profile_rel` ile takıma editör olarak eklenir. Sunucu `SIGMA_MCP_KEY` ile korunur ve yalnız Tailscale IP'sine yayınlanır.
+
+İstemci: `claude mcp add --transport http sigma-headless http://<tailscale-ip>:4410/mcp --header "Authorization: Bearer <SIGMA_MCP_KEY>"`
+
+İkisi birlikte kullanılır: canlı seçim ve editörde anlık görme için resmi `sigma`, arka plan ve çok dosyalı işler için `sigma-headless`. Ayrıntı ve sınırlar: `apps/mcp-headless/README.md`.
