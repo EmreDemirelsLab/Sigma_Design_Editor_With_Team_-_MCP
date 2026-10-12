@@ -1,5 +1,6 @@
 // HTTP katmanı: /health ve /mcp (Streamable HTTP, durumsuz). Kendi bearer anahtarımızla korunur; yalnız Tailscale'e yayınlanır.
 import http from "node:http";
+import { timingSafeEqual } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { cfg } from "./config.js";
@@ -7,13 +8,21 @@ import { log } from "./log.js";
 import { penpot } from "./penpot.js";
 import { registerTools } from "./tools.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 let penpotOk = false, lastPing = 0;
-async function ping() { if (Date.now() - lastPing < 10000) return penpotOk; lastPing = Date.now(); try { await penpot.rpc("get-profile"); penpotOk = true; } catch { penpotOk = false; } return penpotOk; }
+async function ping() { if (Date.now() - lastPing < 10000) return penpotOk; lastPing = Date.now(); try { await penpot.rpc("get-profile", {}, { quiet: true }); penpotOk = true; } catch { penpotOk = false; } return penpotOk; }
+
+const INSTRUCTIONS = [
+  "Sigma Headless Penpot MCP — reads and edits Penpot design files through the backend API. No browser tab is needed; any file is reachable by id.",
+  "READ (Dev Mode style): penpot_list_projects → penpot_list_files → penpot_file_overview. For large pages call penpot_get_metadata (sparse XML outline) to locate node ids.",
+  "Then penpot_get_design_context(nodeId) returns React+Tailwind (or HTML+CSS) code with data-node-id attributes, the colors/fonts used (mapped to library names) and a PNG screenshot. Treat the screenshot as visual ground truth and the code as an exact reference for sizes, colors and text; adapt it to the target codebase's own components instead of pasting it verbatim.",
+  "penpot_get_variable_defs lists the color, typography, spacing, radius and stroke values in use plus library colors/typographies/tokens. penpot_search_design_system finds existing components/colors before you create new ones.",
+  "WRITE: penpot_batch_create builds many shapes (board/rect/ellipse/text/path) in one revision; text accepts `runs` for mixed colors/weights in one layer; penpot_create_path takes any SVG path 'd'; penpot_create_component turns a shape into a library component and penpot_instantiate_component places copies; penpot_batch_update changes many shapes at once (style-only text edits keep mixed runs).",
+  "Coordinates are absolute page pixels (children are NOT relative to their parent). After writing, check the result with penpot_get_screenshot. Take penpot_snapshot before large destructive edits.",
+].join("\n");
 
 function buildServer() {
-  const server = new McpServer({ name: "sigma-penpot-headless", version: VERSION }, { instructions:
-    "Sigma Headless Penpot MCP: edits Penpot design files directly through the backend API; no browser tab needed, works on any file. Workflow: penpot_list_projects → penpot_list_files → penpot_file_overview → penpot_page_tree → create/update tools. Use penpot_batch_create to build whole screens in one revision. Coordinates are absolute page pixels (children are NOT relative to parent). Take penpot_snapshot before large destructive edits." });
+  const server = new McpServer({ name: "sigma-penpot-headless", version: VERSION }, { instructions: INSTRUCTIONS });
   registerTools(server); return server;
 }
 
@@ -23,7 +32,8 @@ const srv = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", "http://x");
   if (url.pathname === "/health") { const okp = await ping(); res.writeHead(okp ? 200 : 503, { "content-type": "application/json" }); return res.end(JSON.stringify({ ok: okp, penpot: okp, version: VERSION })); }
   if (url.pathname !== "/mcp") { res.writeHead(404); return res.end(); }
-  const auth = req.headers.authorization ?? ""; if (auth !== `Bearer ${cfg.mcpKey}`) { res.writeHead(401, { "content-type": "application/json" }); return res.end(JSON.stringify({ error: "unauthorized" })); }
+  const auth = Buffer.from(req.headers.authorization ?? ""), want = Buffer.from(`Bearer ${cfg.mcpKey}`);
+  if (auth.length !== want.length || !timingSafeEqual(auth, want)) { res.writeHead(401, { "content-type": "application/json" }); return res.end(JSON.stringify({ error: "unauthorized" })); }
   const server = buildServer();
   try {
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });

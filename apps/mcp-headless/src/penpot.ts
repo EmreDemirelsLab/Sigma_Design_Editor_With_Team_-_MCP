@@ -18,7 +18,7 @@ class Penpot {
   private authCookie: string | null = null;
   private inflight = new Map<string, Promise<FileRecord>>();
 
-  async rpc<T = Json>(cmd: string, params: Record<string, unknown> = {}, opts: { cookie?: boolean } = {}): Promise<T> {
+  async rpc<T = Json>(cmd: string, params: Record<string, unknown> = {}, opts: { cookie?: boolean; quiet?: boolean } = {}): Promise<T> {
     const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), cfg.rpcTimeoutMs);
     const headers: Record<string, string> = { "content-type": "application/json", accept: "application/json" };
     if (opts.cookie && this.authCookie) headers.cookie = this.authCookie; else headers.authorization = `Token ${cfg.token}`;
@@ -28,7 +28,7 @@ class Penpot {
       const text = await r.text();
       let body: Json = null; try { body = text ? JSON.parse(text) : null; } catch { body = text; }
       if (!r.ok) throw new PenpotError(r.status, body?.code ?? `http-${r.status}`, body?.hint ?? String(text).slice(0, 200), body);
-      log("info", "rpc", { cmd, ms: Math.round(performance.now() - t0) });
+      if (!opts.quiet) log("info", "rpc", { cmd, ms: Math.round(performance.now() - t0) });
       return body as T;
     } finally { clearTimeout(timer); }
   }
@@ -66,7 +66,13 @@ class Penpot {
     return p;
   }
 
-  /** Değişiklikleri uygular; revn çakışırsa dosyayı tazeleyip bir kez daha dener. */
+  /** Yazmadan önce taze okuma: değişiklik, önbellekteki değil güncel şekil üzerinden hesaplanır (eşzamanlı insan düzenlemesini ezmemek için). */
+  fresh(fileId: string) { return this.getFile(fileId, true); }
+
+  /** Bağlı kütüphane dosyaları (id, ad). */
+  async libraries(fileId: string): Promise<Json[]> { try { return await this.rpc("get-file-libraries", { fileId }); } catch { return []; } }
+
+  /** Değişiklikleri uygular; yalnız gerçek revizyon çakışmasında dosyayı tazeleyip bir kez daha dener (şema hataları yeniden denenmez). */
   async applyChanges(fileId: string, changes: Json[], attempt = 0): Promise<{ revn: number }> {
     if (!changes.length) return { revn: (await this.getFile(fileId)).revn };
     const rec = await this.getFile(fileId, attempt > 0);
@@ -75,7 +81,7 @@ class Penpot {
       this.invalidate(fileId);
       return { revn: r?.revn ?? rec.revn + 1 };
     } catch (e) {
-      if (e instanceof PenpotError && attempt === 0 && /conflict|revn|outdated|validation/i.test(e.code + " " + e.hint)) {
+      if (e instanceof PenpotError && attempt === 0 && /conflict|revn|outdated|concurrent/i.test(e.code + " " + e.hint)) {
         log("warn", "update-file yeniden deneniyor", { fileId, code: e.code });
         this.invalidate(fileId); return this.applyChanges(fileId, changes, 1);
       }

@@ -59,18 +59,34 @@ export function flexAttrs(l: FlexLayout): Json {
 
 export interface TextStyle { fontFamily?: string; fontSize?: number; fontWeight?: string; fontStyle?: "normal" | "italic";
   color?: string; align?: "left" | "center" | "right" | "justify"; lineHeight?: number; letterSpacing?: number; }
-/** Penpot metin içeriği. Varsayılan font: Penpot'un gömülü Source Sans Pro (fontId "sourcesanspro"). Google fontları: fontId "gfont-<slug>". */
-export function textContent(text: string, st: TextStyle = {}): Json {
+export interface TextRun extends TextStyle { text: string; textDecoration?: "none" | "underline" | "line-through"; textTransform?: "none" | "uppercase" | "lowercase" | "capitalize" }
+
+function leafOf(text: string, st: TextRun | TextStyle): Json {
   const family = st.fontFamily ?? "sourcesanspro";
   const fontId = family === "sourcesanspro" ? "sourcesanspro" : `gfont-${family.toLowerCase().replace(/\s+/g, "-")}`;
   const weight = st.fontWeight ?? "400"; const style = st.fontStyle ?? "normal";
   const variant = `${weight === "400" ? (style === "italic" ? "italic" : "regular") : weight + (style === "italic" ? "italic" : "")}`;
-  const leaf = { text, fontId, fontFamily: family, fontVariantId: variant, fontSize: String(st.fontSize ?? 16), fontWeight: weight, fontStyle: style,
-    lineHeight: String(st.lineHeight ?? 1.2), letterSpacing: String(st.letterSpacing ?? 0), textAlign: st.align ?? "left", textDecoration: "none", textTransform: "none", textDirection: "ltr",
+  return { text, fontId, fontFamily: family, fontVariantId: variant, fontSize: String(st.fontSize ?? 16), fontWeight: weight, fontStyle: style,
+    lineHeight: String(st.lineHeight ?? 1.2), letterSpacing: String(st.letterSpacing ?? 0), textAlign: st.align ?? "left",
+    textDecoration: (st as TextRun).textDecoration ?? "none", textTransform: (st as TextRun).textTransform ?? "none", textDirection: "ltr",
     fills: [fill(st.color ?? "#000000")], typographyRefId: null, typographyRefFile: null };
-  const para = { type: "paragraph", ...leaf, text: undefined, children: [leaf] } as Json; delete para.text;
-  return { type: "root", children: [{ type: "paragraph-set", children: [para] }] };
 }
+
+/** Karışık stilli metin: her parça kendi rengi/ağırlığı/fontuyla; "\n" yeni paragraf açar. Parçalar temel stili devralır. */
+export function richTextContent(runs: TextRun[], base: TextStyle = {}): Json {
+  const paras: Json[][] = [[]];
+  for (const r of runs) {
+    const st = { ...base, ...Object.fromEntries(Object.entries(r).filter(([, v]) => v !== undefined)) } as TextRun;
+    r.text.split("\n").forEach((part, i) => { if (i > 0) paras.push([]); if (part.length) paras[paras.length - 1].push(leafOf(part, st)); });
+  }
+  const children = paras.map(leaves => {
+    const first = leaves[0] ?? leafOf("", base); const para = { type: "paragraph", ...first, children: leaves.length ? leaves : [leafOf("", base)] } as Json; delete para.text; return para;
+  });
+  return { type: "root", children: [{ type: "paragraph-set", children }] };
+}
+
+/** Penpot metin içeriği. Varsayılan font: Penpot'un gömülü Source Sans Pro (fontId "sourcesanspro"). Google fontları: fontId "gfont-<slug>". "\n" paragraf ayırır. */
+export function textContent(text: string, st: TextStyle = {}): Json { return richTextContent([{ text }], st); }
 
 // ---- değişiklik (change) kurucuları ----
 export const addObj = (pageId: string, obj: Json, index?: number) => ({ type: "add-obj", pageId, id: obj.id, frameId: obj.frameId, parentId: obj.parentId, obj, ...(index !== undefined ? { index } : {}) });

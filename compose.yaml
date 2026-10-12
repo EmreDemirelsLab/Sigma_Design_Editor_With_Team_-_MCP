@@ -40,6 +40,7 @@ services:
     networks:
     - penpot
     environment:
+      JVM_OPTS: "-XX:MaxRAMPercentage=50 -XX:+UseG1GC -XX:+UseStringDeduplication"
       PENPOT_DATABASE_URI: postgresql://penpot-postgres/penpot
       PENPOT_DATABASE_USERNAME: penpot
       PENPOT_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?Run setup first}
@@ -200,11 +201,15 @@ services:
     - ALL
     security_opt:
     - no-new-privileges:true
-    env_file:
-    - .env
+    # Yalnız gereken değişkenler (en az yetki): veritabanı parolası, Penpot gizli anahtarı, AI/SMTP sırları bu konteynere girmez.
     environment:
       PENPOT_INTERNAL_URL: http://penpot-frontend:8080
+      PENPOT_PUBLIC_URI: ${PENPOT_PUBLIC_URI:?Run setup first}
       MCP_PORT: "4410"
+      SIGMA_AGENT_TOKEN: ${SIGMA_AGENT_TOKEN:?SIGMA_AGENT_TOKEN gerekli}
+      SIGMA_AGENT_EMAIL: ${SIGMA_AGENT_EMAIL:-}
+      SIGMA_AGENT_PASSWORD: ${SIGMA_AGENT_PASSWORD:-}
+      SIGMA_MCP_KEY: ${SIGMA_MCP_KEY:?SIGMA_MCP_KEY gerekli}
     ports:
     - "${SIGMA_MCP_BIND:?Tailscale IP}:4410:4410"
     depends_on:
