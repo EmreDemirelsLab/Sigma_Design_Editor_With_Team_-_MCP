@@ -73,9 +73,10 @@ class Penpot {
   async libraries(fileId: string): Promise<Json[]> { try { return await this.rpc("get-file-libraries", { fileId }); } catch { return []; } }
 
   /** Değişiklikleri uygular; yalnız gerçek revizyon çakışmasında dosyayı tazeleyip bir kez daha dener (şema hataları yeniden denenmez). */
-  async applyChanges(fileId: string, changes: Json[], attempt = 0): Promise<{ revn: number }> {
-    if (!changes.length) return { revn: (await this.getFile(fileId)).revn };
+  async applyChanges(fileId: string, changesIn: Json[], attempt = 0): Promise<{ revn: number }> {
+    if (!changesIn.length) return { revn: (await this.getFile(fileId)).revn };
     const rec = await this.getFile(fileId, attempt > 0);
+    const changes = normalizeChanges(changesIn, rec);
     try {
       const r = await this.rpc("update-file", { id: fileId, sessionId: crypto.randomUUID(), revn: rec.revn, vern: rec.vern, changes, features: rec.features });
       this.invalidate(fileId);
@@ -115,5 +116,52 @@ class Penpot {
     return { bytes: Buffer.from(await r.arrayBuffer()), mime: ct || mimeOf(type) };
   }
 }
+// ---------- mod-obj güvenliği ----------
+// Penpot'un JSON API'si mod-obj değerlerini şemadan geçirmez: enum (stroke-style, layout, grow-type…), UUID ve geometri kayıtları
+// (selrect, points) metin/harita olarak kalır ve doğrulamada reddedilir. Çözüm:
+//  1) Aynı toplu işte eklenen şekillere ait mod-obj'lar doğrudan add-obj nesnesine katılır (tek revizyon, şema yolundan geçer).
+//  2) Mevcut şekillerde güvensiz alan varsa şekil, alt ağacıyla birlikte aynı kimliklerle silinip yeniden eklenir; alt ağaçtaki
+//     diğer güncellemeler de bu yeniden eklemeye katılır (her şekil en fazla bir kez yeniden eklenir).
+const SAFE_ATTRS = new Set(["name", "opacity", "hidden", "blocked", "content", "position-data", "r1", "r2", "r3", "r4",
+  "layout-gap", "layout-padding", "layout-item-margin", "proportion", "layout-item-min-w", "layout-item-max-w", "layout-item-min-h", "layout-item-max-h"]);
+const camel = (s: string) => s.replace(/-([a-z])/g, (_m, c) => c.toUpperCase());
+const unsafeOp = (op: Json) => {
+  if (op.attr === "fills") return (op.val ?? []).some((f: Json) => f.fillColorGradient || f.fillImage || f.fillColorRefId);
+  return !SAFE_ATTRS.has(op.attr);
+};
+export function normalizeChanges(changes: Json[], rec: FileRecord): Json[] {
+  const added = new Map<string, Json>();
+  for (const ch of changes) if (ch.type === "add-obj") added.set(ch.id, ch);
+  // her şekil için birikmiş öznitelikler (sırayla) ve güvensizlik bayrağı
+  const attrs = new Map<string, { pageId: string; set: Json; unsafe: boolean }>();
+  const rest: Json[] = [];
+  for (const ch of changes) {
+    if (ch.type !== "mod-obj") { rest.push(ch); continue; }
+    const fresh = added.get(ch.id);
+    if (fresh) { for (const op of ch.operations) fresh.obj[camel(op.attr)] = op.val; continue; }
+    const cur = attrs.get(ch.id) ?? { pageId: ch.pageId, set: {}, unsafe: false };
+    for (const op of ch.operations) { cur.set[camel(op.attr)] = op.val; if (unsafeOp(op)) cur.unsafe = true; }
+    attrs.set(ch.id, cur);
+  }
+  const out = [...rest]; const covered = new Set<string>();
+  // güvensiz şekiller: üstten alta, her alt ağaç bir kez
+  const depthOf = (objs: Json, id: string) => { let d = 0, c = objs?.[id]; while (c && c.parentId && c.parentId !== c.id && d < 200) { d++; c = objs[c.parentId]; } return d; };
+  const unsafeIds = [...attrs.entries()].filter(([, v]) => v.unsafe).map(([id, v]) => ({ id, pageId: v.pageId, depth: depthOf(rec.data?.pagesIndex?.[v.pageId]?.objects, id) })).sort((a, b) => a.depth - b.depth);
+  for (const { id, pageId } of unsafeIds) {
+    if (covered.has(id)) continue;
+    const objs = rec.data?.pagesIndex?.[pageId]?.objects; const head = objs?.[id];
+    if (!head) { const v = attrs.get(id)!; out.push({ type: "mod-obj", pageId, id, operations: Object.entries(v.set).map(([k, val]) => ({ type: "set", attr: k.replace(/[A-Z]/g, m => "-" + m.toLowerCase()), val })) }); continue; }
+    const order: string[] = []; const walk = (sid: string) => { order.push(sid); covered.add(sid); (objs[sid]?.shapes ?? []).forEach(walk); }; walk(id);
+    const parent = objs[head.parentId]; const index = (parent?.shapes ?? []).indexOf(id);
+    out.push({ type: "del-obj", pageId, id });
+    order.forEach((sid, i) => { const o = { ...objs[sid], ...(attrs.get(sid)?.set ?? {}), shapes: [] };
+      out.push({ type: "add-obj", pageId, id: sid, frameId: o.frameId, parentId: o.parentId, obj: o, ...(i === 0 && index >= 0 ? { index } : {}) }); });
+  }
+  // güvenli ve kapsanmamış güncellemeler mod-obj olarak kalır
+  for (const [id, v] of attrs) if (!covered.has(id) && !v.unsafe)
+    out.push({ type: "mod-obj", pageId: v.pageId, id, operations: Object.entries(v.set).map(([k, val]) => ({ type: "set", attr: k.replace(/[A-Z]/g, m => "-" + m.toLowerCase()), val })) });
+  return out;
+}
+
 const mimeOf = (t: string) => t === "png" ? "image/png" : t === "svg" ? "image/svg+xml" : "application/pdf";
 export const penpot = new Penpot();

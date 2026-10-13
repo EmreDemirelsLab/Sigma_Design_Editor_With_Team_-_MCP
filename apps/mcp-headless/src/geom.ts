@@ -22,12 +22,18 @@ type Seg = { c: "M" | "L" | "C" | "Z"; p: number[] };
 
 /** Herhangi bir SVG "d" metnini (göreli komutlar, H/V/S/Q/T/A dahil) mutlak M/L/C/Z dizisine çevirir. */
 export function normalizePath(d: string): Seg[] {
-  const toks = d.match(/[a-zA-Z]|[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g) ?? [];
-  const out: Seg[] = []; let i = 0, cmd = "", cx = 0, cy = 0, sx = 0, sy = 0, lcx = 0, lcy = 0, lqx = 0, lqy = 0, prev = "";
-  const num = () => { const v = Number(toks[i++]); if (!Number.isFinite(v)) throw new Error(`Geçersiz yol verisi: "${d.slice(0, 60)}"`); return v; };
-  const isNum = () => i < toks.length && !/[a-zA-Z]/.test(toks[i]);
-  while (i < toks.length) {
-    if (/[a-zA-Z]/.test(toks[i])) cmd = toks[i++]; else if (!cmd) throw new Error("Yol verisi bir komutla başlamalı (M)");
+  // Tarayıcı: sayılar ayraçsız bitişebilir ("1-2", ".5.5") ve yay bayrakları tek hanedir ("a41 41 0 000 18").
+  let pos = 0; const len = d.length;
+  const skip = () => { while (pos < len && /[\s,]/.test(d[pos])) pos++; };
+  const bad = () => new Error(`Geçersiz yol verisi: "${d.slice(Math.max(0, pos - 20), pos + 40)}"`);
+  const numRe = /[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/y;
+  const num = () => { skip(); numRe.lastIndex = pos; const m = numRe.exec(d); if (!m) throw bad(); pos += m[0].length; return Number(m[0]); };
+  const flag = () => { skip(); const c = d[pos]; if (c !== "0" && c !== "1") throw bad(); pos++; return Number(c); };
+  const isNum = () => { skip(); return pos < len && /[-+.\d]/.test(d[pos]); };
+  const out: Seg[] = []; let cmd = "", cx = 0, cy = 0, sx = 0, sy = 0, lcx = 0, lcy = 0, lqx = 0, lqy = 0, prev = "";
+  while (true) {
+    skip(); if (pos >= len) break;
+    if (/[a-zA-Z]/.test(d[pos])) cmd = d[pos++]; else if (!cmd) throw new Error("Yol verisi bir komutla başlamalı (M)");
     const rel = cmd === cmd.toLowerCase(), C = cmd.toUpperCase();
     const ax = (v: number) => rel ? cx + v : v, ay = (v: number) => rel ? cy + v : v;
     switch (C) {
@@ -41,7 +47,7 @@ export function normalizePath(d: string): Seg[] {
       case "Q": { const qx = ax(num()), qy = ay(num()), x = ax(num()), y = ay(num()); out.push({ c: "C", p: quadToCubic(cx, cy, qx, qy, x, y) }); lqx = qx; lqy = qy; cx = x; cy = y; prev = "Q"; break; }
       case "T": { const qx = prev === "Q" ? 2 * cx - lqx : cx, qy = prev === "Q" ? 2 * cy - lqy : cy, x = ax(num()), y = ay(num());
         out.push({ c: "C", p: quadToCubic(cx, cy, qx, qy, x, y) }); lqx = qx; lqy = qy; cx = x; cy = y; prev = "Q"; break; }
-      case "A": { const rx = num(), ry = num(), rot = num(), large = num(), sweep = num(), x = ax(num()), y = ay(num());
+      case "A": { const rx = num(), ry = num(), rot = num(), large = flag(), sweep = flag(), x = ax(num()), y = ay(num());
         for (const p of arcToCubics(cx, cy, rx, ry, rot, !!large, !!sweep, x, y)) out.push({ c: "C", p });
         cx = x; cy = y; prev = "A"; break; }
       case "Z": out.push({ c: "Z", p: [] }); cx = sx; cy = sy; prev = "Z"; break;

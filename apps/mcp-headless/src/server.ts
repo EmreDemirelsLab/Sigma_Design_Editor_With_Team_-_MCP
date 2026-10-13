@@ -7,8 +7,9 @@ import { cfg } from "./config.js";
 import { log } from "./log.js";
 import { penpot } from "./penpot.js";
 import { registerTools } from "./tools.js";
+import { registerPrompts } from "./prompts.js";
 
-const VERSION = "0.2.0";
+const VERSION = "0.3.0";
 let penpotOk = false, lastPing = 0;
 async function ping() { if (Date.now() - lastPing < 10000) return penpotOk; lastPing = Date.now(); try { await penpot.rpc("get-profile", {}, { quiet: true }); penpotOk = true; } catch { penpotOk = false; } return penpotOk; }
 
@@ -19,11 +20,13 @@ const INSTRUCTIONS = [
   "penpot_get_variable_defs lists the color, typography, spacing, radius and stroke values in use plus library colors/typographies/tokens. penpot_search_design_system finds existing components/colors before you create new ones.",
   "WRITE: penpot_batch_create builds many shapes (board/rect/ellipse/text/path) in one revision; text accepts `runs` for mixed colors/weights in one layer; penpot_create_path takes any SVG path 'd'; penpot_create_component turns a shape into a library component and penpot_instantiate_component places copies; penpot_batch_update changes many shapes at once (style-only text edits keep mixed runs).",
   "Coordinates are absolute page pixels (children are NOT relative to their parent). After writing, check the result with penpot_get_screenshot. Take penpot_snapshot before large destructive edits.",
+  "DESIGN QUALITY: start with penpot_create_brand_kit (OKLCH color ramps + type scale). Build screens from flex boards — the server lays them out with Yoga and measures text with the real fonts, so never guess positions. Use templates (penpot_create_device_frame, penpot_insert_web_section, penpot_insert_app_component), Lucide icons (penpot_search_icons / `icon` op), images (penpot_insert_image), logo geometry (penpot_create_primitive, penpot_boolean, penpot_text_to_path).",
+  "QUALITY LOOP — mandatory before presenting: penpot_get_screenshot → penpot_lint_design → fix every error/warning → screenshot again. Aim for score ≥ 90. Expert process prompts: sigma_design_logo, sigma_design_web_page, sigma_design_app_screen, sigma_design_review.",
 ].join("\n");
 
 function buildServer() {
   const server = new McpServer({ name: "sigma-penpot-headless", version: VERSION }, { instructions: INSTRUCTIONS });
-  registerTools(server); return server;
+  registerTools(server); registerPrompts(server); return server;
 }
 
 const readBody = (req: http.IncomingMessage) => new Promise<unknown>((res, rej) => { const c: Buffer[] = []; req.on("data", d => c.push(d)); req.on("end", () => { try { res(c.length ? JSON.parse(Buffer.concat(c).toString()) : undefined); } catch (e) { rej(e); } }); req.on("error", rej); });

@@ -8,28 +8,33 @@ Tarayıcısız, çok dosyalı Penpot tasarım ajanı sunucusu. Penpot'un resmi M
 - Hız: dosya önbelleği (4 sn), keep-alive, toplu oluşturma tek revizyonda. Tipik araç 200-400 ms (Tailscale üzerinden); PNG ekran görüntüsü ~3 sn, ekran görüntülü tasarım bağlamı ~4-5 sn (Penpot exporter Chromium).
 - Kararlılık: revizyon çakışmasında otomatik yeniden deneme, 30 sn RPC zaman aşımı, `/health`, salt okunur konteyner, 384 MB bellek sınırı.
 
-## Araçlar (32) — Figma Dev Mode MCP karşılıkları ile
-Figma'nın MCP'sindeki okuma araçlarının birebir karşılıkları vardır; ajan bir tasarımı kod gibi okuyup aynı dosyaya yazabilir.
+## Araçlar (47)
+Figma'nın MCP'sindeki okuma araçlarının birebir karşılıkları ve Figma'da olmayan tasarım kalitesi araçları vardır.
 
 | Figma MCP | Sigma Headless | Ne döndürür |
 |---|---|---|
-| `get_design_context` | `penpot_get_design_context` | React+Tailwind (ya da HTML+CSS) kodu, `data-node-id` ile katman eşlemesi, kullanılan renkler (kütüphane adlarıyla) ve fontlar, PNG ekran görüntüsü. Düğüm çok büyükse taslağa düşer. |
-| `get_metadata` | `penpot_get_metadata` | Seyrek XML taslak: her katmanın id, ad, tür, x, y, genişlik, yükseklik. Büyük sayfalarda düğüm bulmak için. |
-| `get_screenshot` | `penpot_get_screenshot` | Uzun kenarı ~1600 px olacak şekilde otomatik ölçekli PNG. |
-| `get_variable_defs` | `penpot_get_variable_defs` | Kullanılan renk, tipografi, boşluk, köşe, kontur değerleri ve kütüphane renk/tipografi/tokenları. |
-| `search_design_system` | `penpot_search_design_system` | Bu dosya ve bağlı kütüphanelerde bileşen/renk/tipografi araması. |
-| `use_figma` (yazma) | `penpot_batch_create`, `penpot_batch_update`, `penpot_create_path`, `penpot_create_component`, `penpot_instantiate_component` | Tek revizyonda toplu oluşturma/düzenleme, SVG yol çizimi, bileşen yapma ve kopyalama. |
+| `get_design_context` | `penpot_get_design_context` | React+Tailwind (ya da HTML+CSS) kodu, `data-node-id`, renkler (kütüphane adlarıyla), fontlar, PNG. Düğüm çok büyükse taslağa düşer. |
+| `get_metadata` | `penpot_get_metadata` | Seyrek XML taslak (id, ad, tür, x, y, w, h). |
+| `get_screenshot` | `penpot_get_screenshot` | Otomatik ölçekli PNG. |
+| `get_variable_defs` | `penpot_get_variable_defs` | Kullanılan renk/tipografi/boşluk/köşe/kontur + kütüphane. |
+| `search_design_system` | `penpot_search_design_system` | Dosya ve bağlı kütüphanelerde bileşen/renk/tipografi araması. |
+| `use_figma` (yazma) | `penpot_batch_create`, `penpot_batch_update`, `penpot_create_path`, `penpot_create_component`, `penpot_instantiate_component` | Tek revizyonda toplu oluşturma/düzenleme. |
 
-Tam liste:
-- Keşif: `penpot_list_teams`, `penpot_list_projects`, `penpot_list_files`, `penpot_file_overview`, `penpot_page_tree` (gerçek sınır kutusu, dolgu, kontur, köşe, font, yerleşim), `penpot_get_shape`, `penpot_find_shapes`, `penpot_file_assets`, `penpot_file_url`
-- Tasarım bağlamı: `penpot_get_design_context`, `penpot_get_metadata`, `penpot_get_screenshot`, `penpot_get_variable_defs`, `penpot_search_design_system`
-- Sayfa: `penpot_create_page`, `penpot_rename_page`, `penpot_delete_page`, `penpot_create_file`
-- Oluşturma: `penpot_create_board` (flex), `penpot_create_rectangle`, `penpot_create_ellipse`, `penpot_create_text` (`runs` ile tek katmanda karışık renk/ağırlık/font, `\n` ile paragraf), `penpot_create_path` (her SVG `d`: M L H V C S Q T A Z, göreli/mutlak), `penpot_batch_create` (board/rect/ellipse/text/path)
-- Bileşen: `penpot_create_component` (şekli yerinde ana bileşene çevirir), `penpot_instantiate_component` (bu dosyadan ya da bağlı kütüphaneden kopya)
-- Düzenleme: `penpot_update_shape`, `penpot_batch_update` (yüzlerce şekil tek revizyonda), `penpot_move_shapes`, `penpot_delete_shapes`
-- Güvenlik/çıktı: `penpot_snapshot`, `penpot_export` (PNG/SVG; render-wasm dosyalarda önce WASM, olmazsa klasik)
+**Tasarım kalitesi (v0.3)**
+- **Denetçi** `penpot_lint_design`: WCAG kontrast, metin taşması/çakışması, sınır dışı katman, 4/8px ızgara, neredeyse-hiza, boşluk ölçeği, font/renk dağınıklığı, küçük metin, mobil dokunma alanı (44px), logo için ince kontur. 0-100 skor + katman kimliği + somut düzeltme.
+- **Gerçek metin ölçümü** (fontkit, Penpot'un Google Fonts vekili; latin + latin-ext, Türkçe karakterler): metin genişliği/satır kırma/positionData editör açılmadan doğru.
+- **Sunucu tarafı flex yerleşim** (Yoga): `penpot_apply_layout`; toplu oluşturma ve güncellemeler flex board'ları otomatik yerleştirir.
+- **Logo**: `penpot_create_primitive` (çokgen, yıldız, halka, dilim, yay, squircle, çizgi), `penpot_boolean` (union/subtract/intersect/exclude, paper.js), `penpot_text_to_path` (kerning'li kelime markası), `penpot_export_logo_pack` (16→1024px).
+- **İkon ve görsel**: `penpot_search_icons` / `penpot_insert_icon` (1.877 Lucide ikonu, hepsi test edildi), `penpot_insert_image` (URL'den bitmap).
+- **Parçacık çizimi** `penpot_create_dot_art`: ikon/yol/hazır şekilden (globe, enso, galaxy…) katmanlı, parlayan nokta bulutu — premium AI sitelerinin görsel dili.
+- **Marka kiti** `penpot_create_brand_kit`: tek renkten OKLCH rampaları (50-950), nötr rampa, durum renkleri, modüler tipografi ölçeği → kütüphane + stil sayfası.
+- **Şablonlar**: `penpot_create_device_frame` (iPhone 16/Pro Max/SE, Android, iPad, tablet, laptop, desktop, mobil web; ızgara + güvenli alanlar), `penpot_insert_web_section` (navbar, hero + ürün paneli önizlemesi, logo-cloud, features, pricing, testimonial, cta, footer, koyu parçacıklı `scene-hero` / `scene`), `penpot_insert_app_component` (app-bar, tab-bar, button, text-field, list-item, card, search-bar).
+- **Prototip** `penpot_link_screens`: tıklama/hover/gecikme ile ekran geçişi ve animasyon.
+- **Efektler**: degrade, gölge, bulanıklık, kontur stili/hizası, flex çocuk boyutlandırma ve kenar boşluğu — oluşturma ve güncelleme araçlarında.
+- **MCP istemleri** (Claude Code ve Codex): `sigma_design_logo`, `sigma_design_web_page`, `sigma_design_app_screen`, `sigma_design_review` — uzman süreci + kalite döngüsü.
 
 ## Doğruluk ve eşzamanlılık
+- Penpot'un JSON API'si mod-obj değerlerini şemadan geçirmez (enum, UUID, selrect/points). `normalizeChanges` bu değişiklikleri otomatik olarak aynı kimlikle yeniden ekleme biçimine çevirir; aynı toplu işte yeni eklenen şekillere ait güncellemeler doğrudan add-obj'a katılır.
 - Her yazma, önbellek değil **taze** dosya üzerinden hesaplanır; yalnız istenen alanlar gönderilir. Bir insan aynı anda düzenlerken diğer alanlar ezilmez.
 - Metinde yalnız stil (renk, ağırlık, harf aralığı…) değişirse karışık stilli parçalar korunur; `text` verilirse metin tek stille yeniden kurulur.
 - Yalnız gerçek revizyon çakışması bir kez yeniden denenir; şema hataları yeniden denenmez.
@@ -40,7 +45,7 @@ Tam liste:
 - Flex auto-layout akışı editör dosyayı açınca uygulanır; çocuklara yine makul mutlak konum ver. Toplu oluşturmada op sırası = görsel sıra.
 - Metnin kesin satır yerleşimi (`positionData`) editörde hesaplanır. Bu yüzden editörde hiç açılmamış metin içeren board'ların **SVG** dışa aktarımı Penpot exporter'ında zaman aşımına düşer; araç bunu hızlıca açıklayan bir hata döndürür. **PNG ve ekran görüntüsü her durumda çalışır.**
 - Döndürülmüş şekillerde geometri güncellemesi kapalı (ham `attrs` ile yapılabilir).
-- Görsel (bitmap) yükleme ve grid layout oluşturma henüz yok; mevcut grid layout'lar okunur ve koda çevrilir.
+- Grid layout oluşturma henüz yok (mevcut grid layout'lar okunur ve koda çevrilir); flex tam desteklenir.
 - Kod çıktısında konturlar CSS `outline` ile Penpot hizalamasına (center/inner/outer) göre verilir; içe aktarılmış ham SVG (`svg-raw`) katmanları için `penpot_export` kullanılır.
 
 ## Güvenlik
