@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#fafafa" />
+<title>ZENGOAI | Yapay Zekâ Stüdyosu, İstanbul</title>
+<meta name="description" content="ZenGoAi: düşünen sistemler, ölçülen sonuçlar. İstanbul merkezli yapay zekâ ve ürün stüdyosu." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23fafafa'/%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%230e0e10' stroke-width='1.6' stroke-dasharray='1.4 1.6'/%3E%3Ccircle cx='24' cy='9' r='2.6' fill='%23ff6a00'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;600&family=Montserrat:wght@200;300;400;500&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --bg: #fafafa; --ink: #0e0e10; --ink2: #18181b; --grey: #63636c; --light: #a3a3a3; --cell: rgba(99, 99, 108, .32); --gridline: rgba(160, 190, 220, .26); --acc: #ff6a00; --navy: #1b2d6e;
+  --g: 75px; --ox: 45px; --oy: 0px;
+  --sans: "Montserrat", ui-sans-serif, system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); font-weight: 300; -webkit-font-smoothing: antialiased; }
+html.lenis, html.lenis body { height: auto; } .lenis.lenis-smooth { scroll-behavior: auto !important; }
+a { color: inherit; text-decoration: none; } button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+::selection { background: var(--ink); color: var(--bg); }
+
+#spacer { width: 1px; }
+.stage { position: fixed; inset: 0; overflow: hidden; }
+/* blueprint ızgarası: hücre başına bir çizgi, sahnenin hücre düzenine hizalı */
+.grid { position: absolute; inset: 0; pointer-events: none;
+  background-image: linear-gradient(to right, var(--gridline) 1px, transparent 1px), linear-gradient(to bottom, var(--gridline) 1px, transparent 1px);
+  background-size: var(--g) var(--g); background-position: var(--ox) var(--oy); }
+#gl { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
+
+/* hücre: konum ve boyut ızgara birimleriyle (masaüstü --x/--y/--w/--h, mobil --mx/--my/--mw/--mh) */
+.c { position: absolute; left: calc(var(--ox) + var(--x) * var(--g)); top: calc(var(--oy) + var(--y) * var(--g)); width: calc(var(--w) * var(--g)); height: calc(var(--h) * var(--g)); }
+.b { border: 1px solid var(--cell); margin: 0 -1px -1px 0; }   /* komşu hücrelerin kenarları üst üste biner */
+.mono { font-family: var(--mono); font-size: max(10px, calc(var(--g) * .14)); color: var(--light); letter-spacing: 0; white-space: nowrap; }
+.anno { position: absolute; font-family: var(--mono); font-size: 10.5px; color: var(--light); pointer-events: none; white-space: nowrap; }
+
+/* üst çerçeve */
+.top { z-index: 10; }
+.logo { display: flex; align-items: center; justify-content: center; white-space: nowrap; font-size: calc(var(--g) * .26); font-weight: 400; letter-spacing: .02em; }
+.logo { font-family: "Manrope", var(--sans); font-weight: 600; letter-spacing: -.026em; color: #0f1c2e; }
+.logo svg { width: 1.25em; height: 1.25em; margin-right: .32em; flex: none; } .logo i { font-style: normal; font-weight: 300; margin-left: .26em; }
+.tcell { display: grid; place-items: center; font-size: calc(var(--g) * .26); font-weight: 300; color: var(--grey); transition: background .3s, color .3s; }
+button.tcell:hover { background: var(--ink); color: var(--bg); }
+.cross { position: absolute; z-index: 2; width: 13px; height: 13px; margin: -6px 0 0 -6px; left: calc(var(--ox) + 9 * var(--g)); top: calc(var(--oy) + var(--g)); pointer-events: none; }
+.cross::before, .cross::after { content: ""; position: absolute; background: var(--light); } .cross::before { left: 6px; top: 0; width: 1px; height: 13px; } .cross::after { top: 6px; left: 0; height: 1px; width: 13px; }
+.ruler { position: absolute; z-index: 2; height: 20px; background-image: linear-gradient(to right, var(--light) 1px, transparent 1px), linear-gradient(to right, var(--light) 1px, transparent 1px);
+  background-size: var(--g) 12px, calc(var(--g) / 5) 6px; background-repeat: repeat-x; background-position: 0 100%, 0 100%; border-bottom: 1px solid var(--cell); opacity: .9; }
+.ruler i { position: absolute; bottom: 0; left: 0; width: 1px; height: 20px; background: var(--ink); will-change: transform; }
+.vbar { position: fixed; z-index: 12; right: 6px; top: 0; width: 3px; height: 60px; background: var(--ink); border-radius: 2px; will-change: transform; }
+
+/* paneller: yalnızca görünürlük değişir (gizliyken de ölçülebilsin diye display:none yok) */
+.panel { position: absolute; inset: 0; visibility: hidden; z-index: 4; }
+.panel.on { visibility: visible; }
+.panel .c { clip-path: inset(0 0 0 0); }
+
+.head { display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: 6px; }
+.head h2 { margin: 0; font-weight: 200; font-size: calc(var(--g) * .52); line-height: 1; letter-spacing: .015em; text-transform: uppercase; color: var(--ink2); white-space: nowrap; }
+.head p { margin: 4px 0 0; font-size: max(11px, calc(var(--g) * .18)); color: var(--light); white-space: nowrap; } .head p b { font-weight: 300; color: var(--grey); }
+.btn { display: grid; place-items: center; font-size: max(12px, calc(var(--g) * .22)); font-weight: 400; transition: background .3s, color .3s; }
+.btn:hover { background: var(--ink); color: var(--bg); }
+
+/* hero */
+.lab { font-size: max(10.5px, calc(var(--g) * .17)); letter-spacing: .08em; text-transform: uppercase; color: var(--grey); font-weight: 400; white-space: nowrap; line-height: 1.6; }
+.lab em { font-style: normal; color: var(--light); font-weight: 300; }
+.words { font-weight: 200; font-size: calc(var(--g) * .48); line-height: 1.15; letter-spacing: .03em; text-transform: uppercase; color: var(--grey); white-space: nowrap; }
+.words span { display: block; color: var(--light); }
+.bracket { position: absolute; width: var(--g); height: var(--g); border-color: var(--cell); border-style: solid; border-width: 0; }
+
+/* işler */
+.shot { container-type: inline-size; overflow: hidden; }
+.scr { position: absolute; inset: 0; overflow: hidden; font-family: var(--sans); }
+.icons { display: grid; place-items: center; font-family: var(--sans); font-weight: 600; font-style: italic; font-size: max(10px, calc(var(--g) * .18)); color: var(--light); letter-spacing: .02em; }
+.hatch { background-image: repeating-linear-gradient(45deg, rgba(99,99,108,.22) 0 1px, transparent 1px 7px), repeating-linear-gradient(-45deg, rgba(99,99,108,.22) 0 1px, transparent 1px 7px); }
+.desc { padding: calc(var(--g) * .35); font-size: max(13px, calc(var(--g) * .24)); line-height: 1.4; color: var(--grey); overflow: hidden; }
+.desc p { margin: 0 0 .7em; }
+.pname { display: grid; place-items: center; font-size: calc(var(--g) * .3); font-weight: 300; color: var(--ink2); }
+.arrow { display: grid; place-items: center; transition: background .3s, color .3s; } .arrow:hover { background: var(--ink); color: var(--bg); }
+.arrow svg { width: 16px; height: 16px; }
+
+/* hizmetler */
+.htitle { white-space: nowrap; }
+.htitle .w { transition: color .6s; color: var(--light); } .htitle .w.on { color: var(--ink2); }
+.svc { padding: calc(var(--g) * .28) calc(var(--g) * .32); }
+.sq { display: flex; gap: 8px; } .sq i { width: 20px; height: 20px; background: var(--light); transition: background .4s; } .sq i.on { background: var(--ink); }
+.svc h3 { margin: calc(var(--g) * .42) 0 0; font-weight: 300; font-size: calc(var(--g) * .7); line-height: 1; letter-spacing: .01em; color: var(--ink); white-space: nowrap; }
+.svc h3 b { display: inline-block; margin-top: calc(var(--g) * .12); padding: .06em .12em .12em; background: var(--ink); color: var(--bg); font-weight: 300; }
+.svc .typed { margin-top: calc(var(--g) * .42); font-size: max(13px, calc(var(--g) * .24)); line-height: 1.5; color: var(--grey); max-width: 30ch; min-height: 3em; }
+.caret { display: inline-block; width: 1px; height: 1em; margin-left: 2px; vertical-align: -2px; background: var(--light); animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+#gears { width: 100%; height: 100%; display: block; }
+.track { overflow: hidden; }
+.tcards { display: flex; height: 100%; will-change: transform; transition: transform 1.1s cubic-bezier(.65, 0, .25, 1); }
+.tcard { flex: none; height: 100%; padding: calc(var(--g) * .22) calc(var(--g) * .24); border-right: 1px solid var(--cell); display: flex; flex-direction: column; justify-content: space-between; }
+.tcard q { quotes: none; font-style: italic; font-size: max(12px, calc(var(--g) * .18)); line-height: 1.45; color: var(--grey); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.tcard span { font-size: max(12px, calc(var(--g) * .2)); color: var(--grey); } .tcard span em { font-style: normal; font-size: .85em; color: var(--light); }
+.stat { display: grid; place-items: center; text-align: center; font-size: calc(var(--g) * .42); font-weight: 300; color: var(--grey); }
+.stat small { display: block; margin-top: 10px; font-size: max(11px, calc(var(--g) * .19)); }
+.stat.txt { place-items: start; padding: calc(var(--g) * .3); text-align: left; font-size: calc(var(--g) * .34); line-height: 1.1; color: var(--ink2); }
+.svcpanel [data-stats] { opacity: 0; transition: opacity .6s; pointer-events: none; } .svcpanel.stats [data-stats] { opacity: 1; pointer-events: auto; }
+.svcpanel [data-nostats] { transition: opacity .6s; } .svcpanel.stats [data-nostats] { opacity: 0; }
+
+/* hakkımızda */
+.about-t { display: flex; align-items: center; padding: 0 calc(var(--g) * .78); font-size: max(14px, calc(var(--g) * .28)); line-height: 1.55; color: var(--ink2); }
+.portrait { padding: calc(var(--g) * .22); }
+.portrait > div { width: 100%; height: 100%; position: relative; overflow: hidden; background: #111; }
+.marq { overflow: hidden; display: flex; align-items: center; }
+.marq-in { display: flex; gap: calc(var(--g) * .9); padding-left: calc(var(--g) * .5); will-change: transform; }
+.marq-in span { font-weight: 600; font-style: italic; font-size: max(12px, calc(var(--g) * .26)); color: rgba(163,163,163,.8); white-space: nowrap; }
+
+/* iletişim */
+.mail { display: flex; align-items: center; justify-content: center; font-size: calc(var(--g) * .34); font-weight: 200; letter-spacing: .02em; text-transform: uppercase; transition: background .3s, color .3s; }
+.mail:hover { background: var(--ink); color: var(--bg); }
+.info { padding: calc(var(--g) * .35); display: flex; flex-direction: column; justify-content: space-between; }
+.info dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: max(12px, calc(var(--g) * .2)); }
+.info dt { font-family: var(--mono); color: var(--light); font-size: .85em; } .info dd { margin: 0; color: var(--ink2); }
+
+/* menü */
+.menu { position: fixed; inset: 0; z-index: 20; background: rgba(250,250,250,.96); visibility: hidden; opacity: 0; transition: opacity .4s, visibility .4s; }
+.menu.open { visibility: visible; opacity: 1; }
+.menu a { display: flex; align-items: center; gap: 18px; padding: 0 calc(var(--g) * .3); font-weight: 200; font-size: calc(var(--g) * .5); text-transform: uppercase; letter-spacing: .02em; transition: background .3s, color .3s; }
+.menu a:hover { background: var(--ink); color: var(--bg); } .menu a em { font-style: normal; font-family: var(--mono); font-size: 11px; color: var(--light); }
+
+.sample { font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--acc); opacity: .7; }
+
+/* ===== mobil: aynı sistem, 6 sütunlu ızgara ===== */
+@media (max-width: 760px) {
+  .c { left: calc(var(--ox) + var(--mx, var(--x)) * var(--g)); top: calc(var(--oy) + var(--my, var(--y)) * var(--g)); width: calc(var(--mw, var(--w)) * var(--g)); height: calc(var(--mh, var(--h)) * var(--g)); }
+  .dk { display: none !important; }
+  .words { font-size: calc(var(--g) * .5); }
+  .svc h3 { font-size: calc(var(--g) * .62); }
+  .head h2 { font-size: calc(var(--g) * .5); }
+  .htitle .w:not(.on) { display: none; }
+  .vbar { right: 3px; }
+}
+@media (min-width: 761px) { .mb { display: none !important; } }
+@media (prefers-reduced-motion: reduce) { .tcards { transition: none; } .caret { animation: none; } }
+</style>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.min.js" } }</script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.4/dist/lenis.min.js"></script>
+</head>
+<body>
+<div id="spacer"></div>
+<div class="stage" id="stage">
+  <div class="grid"></div>
+  <span class="cross" aria-hidden="true"></span>
+
+  <!-- üst çerçeve -->
+  <a class="c b top logo" href="#" data-step="0" style="--x:0;--y:0;--w:2;--h:1;--mw:2.4"><svg viewBox="0 0 102.4 102.4" aria-hidden="true"><path transform="translate(9.22 9.21)" d="M82.336,30.418C87.608,48.814,79.773,68.446,63.285,78.157C46.796,87.868,25.827,85.2,12.297,71.668C-1.234,58.137,-3.903,37.168,5.808,20.68C15.519,4.192,35.151,-3.643,53.546,1.628" fill="none" stroke="currentColor" stroke-width="7.17" stroke-linecap="round"/><circle cx="80.885" cy="21.515" r="6.145" fill="#f26b1d"/></svg>zengo<i>ai</i></a>
+  <button class="c b top tcell" id="menuBtn" aria-label="Menü" style="--x:2;--y:0;--w:1;--h:1;--mx:2.4">M</button>
+  <span class="c b top tcell dk" aria-label="Dil: Türkçe" style="--x:16;--y:0;--w:1;--h:1">TR</span>
+  <span class="c b top tcell" id="clock" style="--x:17;--y:0;--w:1;--h:1;--mx:5;--mw:1">--:--</span>
+
+  <div class="c ruler" style="--x:0;--y:10.73;--w:18;--h:.27;--my:13.4"><i id="rulerMark"></i></div>
+
+  <canvas id="gl" aria-hidden="true"></canvas>
+
+  <!-- ============ 1. GİRİŞ ============ -->
+  <section class="panel" data-scene="hero" aria-label="Giriş">
+    <div class="c lab" style="--x:1;--y:3;--w:5;--h:.5;--mx:0;--my:1.6;--mw:3">01. <span style="color:var(--grey)">YAPAY ZEKÂ STÜDYOSU</span></div>
+    <div class="c lab" style="--x:12;--y:3;--w:5;--h:.5;text-align:right;--mx:3;--my:1.6;--mw:3">02. İSTANBUL MERKEZLİ</div>
+    <div class="c lab" style="--x:1;--y:8.25;--w:5;--h:.7;--mx:0;--my:11.4;--mw:4"><span style="padding-left:1.9ch">T: +90 212 000 00 00</span><br>03. M: HELLO@ZENGOAI.COM</div>
+    <div class="c lab" style="--x:12;--y:8.52;--w:5;--h:.5;text-align:right;--mx:3;--my:12.3;--mw:3">04. YENİ PROJELERE AÇIK</div>
+    <div class="c words" style="--x:2;--y:5.35;--w:4;--h:1.4;--mx:0;--my:2.7;--mw:6">DÜŞÜNEN<span>SİSTEMLER</span></div>
+    <div class="c words" style="--x:12;--y:5.35;--w:4;--h:1.4;text-align:right;--mx:0;--my:9.1;--mw:6">ÖLÇÜLEN<span>SONUÇLAR</span></div>
+    <div class="c" id="heroFrame" style="--x:6;--y:3;--w:6;--h:6;--mx:.5;--my:4.1;--mw:5;--mh:5">
+      <i class="bracket" style="left:0;top:0;border-left-width:1px;border-top-width:1px"></i><i class="bracket" style="right:0;top:0;border-right-width:1px;border-top-width:1px"></i>
+      <i class="bracket" style="left:0;bottom:0;border-left-width:1px;border-bottom-width:1px"></i><i class="bracket" style="right:0;bottom:0;border-right-width:1px;border-bottom-width:1px"></i>
+      <span class="anno" data-clip style="left:8px;top:6px"></span><span class="anno" data-clip style="right:8px;bottom:6px"></span>
+      <div id="a-hero" style="position:absolute;inset:0"></div>
+    </div>
+  </section>
+
+  <!-- ============ 2. SEÇİLİ İŞLER ============ -->
+  <section class="panel" data-scene="work" aria-label="Seçili işler">
+    <div class="c head" style="--x:0;--y:1.9;--w:12;--h:1.1;--my:1.3;--mw:6"><h2>Seçili İşler</h2><p>Fikirden yayına, seçili dijital deneyimler. <span class="sample">örnek</span></p></div>
+    <a class="c b btn dk" href="#" data-step="11" style="--x:16;--y:2;--w:2;--h:1">Proje Başlat</a>
+    <div class="c b dk" id="a-work" style="--x:0;--y:3;--w:3;--h:6"><span class="anno" id="workAnno" style="left:8px;bottom:8px"></span></div>
+    <div class="c b shot" data-w="main" style="--x:3;--y:3;--w:8;--h:4;--mx:0;--my:2.6;--mw:6;--mh:3.4"></div>
+    <div class="c b shot dk" data-w="t0" style="--x:3;--y:7;--w:4;--h:2"></div>
+    <div class="c b shot dk" data-w="t1" style="--x:7;--y:7;--w:4;--h:2"></div>
+    <div class="c b shot dk" data-w="mob" style="--x:11;--y:3;--w:3;--h:6"></div>
+    <div class="c b icons dk" data-w="i0" style="--x:14;--y:3;--w:1;--h:1"></div>
+    <div class="c b icons dk" data-w="i1" style="--x:14;--y:4;--w:1;--h:1"></div>
+    <div class="c b icons dk" data-w="i2" style="--x:14;--y:5;--w:1;--h:1"></div>
+    <div class="c b icons dk" data-w="i3" style="--x:14;--y:6;--w:1;--h:1"></div>
+    <div class="c b icons dk" data-w="i4" style="--x:14;--y:7;--w:1;--h:1"></div>
+    <div class="c b hatch dk" style="--x:14;--y:8;--w:1;--h:1"></div>
+    <div class="c b desc" data-w="desc" style="--x:15;--y:3;--w:3;--h:6;--mx:0;--my:6;--mw:6;--mh:2.4"></div>
+    <div class="c b mb" id="a-work-m" style="--x:0;--y:3;--w:3;--h:6;--mx:0;--my:8.4;--mw:6;--mh:3"></div>
+    <button class="c b arrow" data-go="-1" aria-label="Önceki iş" style="--x:0;--y:9;--w:1;--h:1;--my:11.4"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor"><path d="M10 3 5 8l5 5"/></svg></button>
+    <a class="c b arrow" href="#" data-ext aria-label="Vakayı aç" style="--x:1;--y:9;--w:1;--h:1;--my:11.4"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor"><path d="M9 3h4v4M13 3 7 9M11 9.5V13H3V5h3.5"/></svg></a>
+    <div class="c b pname" data-w="name" style="--x:2;--y:9;--w:15;--h:1;--mx:2;--my:11.4;--mw:3"></div>
+    <button class="c b arrow" data-go="1" aria-label="Sonraki iş" style="--x:17;--y:9;--w:1;--h:1;--mx:5;--my:11.4"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor"><path d="m6 3 5 5-5 5"/></svg></button>
+  </section>
+
+  <!-- ============ 3. HİZMETLER ============ -->
+  <section class="panel svcpanel" data-scene="svc" aria-label="Hizmetler">
+    <div class="c head" style="--x:0;--y:1.9;--w:14;--h:1.1;--my:1.3;--mw:6"><p style="margin:0 0 6px">Strateji, tasarım ve teknoloji birlikte çalışır. <b>Ödünsüz.</b></p><h2 class="htitle"><span class="w">Güvenilir</span>&nbsp; <span class="w">Yaratıcı</span>&nbsp; <span class="w">Çok yönlü</span></h2></div>
+    <a class="c b btn dk" href="#" data-step="11" style="--x:16;--y:2;--w:2;--h:1">İletişime geç</a>
+    <div class="c b svc" style="--x:0;--y:3;--w:6;--h:5;--my:2.6;--mw:6;--mh:3.6"><div class="sq" id="sq"></div><h3 id="svcT"></h3><div class="typed" id="typed"></div></div>
+    <div class="c b" data-nostats id="a-svc" style="--mx:0;--x:6;--y:3;--w:5;--h:5;--my:6.2;--mw:3;--mh:3"></div>
+    <div class="c b" data-nostats style="--x:11;--y:3;--w:7;--h:5;--mx:3;--my:6.2;--mw:3;--mh:3"><svg id="gears" viewBox="-200 -170 400 340" aria-hidden="true"></svg><span class="anno dk" id="gearAnno" style="left:8px;bottom:8px"></span></div>
+    <!-- son adım: rakamlar -->
+    <div class="c b stat txt" data-stats style="--x:6;--y:3;--w:4;--h:2;--mx:0;--my:6.2;--mw:3;--mh:1.5">uçtan uca<br>tasarlar ve kurarız</div>
+    <div class="c b stat" data-stats style="--x:10;--y:3;--w:3;--h:3;--mx:0;--my:7.7;--mw:1.5;--mh:1.5"><div><span data-count="40">0</span>+<small>Teslim edilen proje</small></div></div>
+    <div class="c b stat" data-stats style="--x:6;--y:5;--w:3;--h:3;--mx:1.5;--my:7.7;--mw:1.5;--mh:1.5"><div>%<span data-count="98">0</span><small>Memnuniyet</small></div></div>
+    <div class="c b hatch dk" data-stats style="--x:9;--y:5;--w:1;--h:1"></div>
+    <div class="c b stat" data-stats style="--x:9;--y:6;--w:4;--h:2;--mx:3;--my:7.7;--mw:3;--mh:1.5"><div><span data-count="12">0</span>+<small>Sektör</small></div></div>
+    <div class="c b" data-stats id="a-svc-s" style="--x:13;--y:3;--w:5;--h:5;--mx:3;--my:6.2;--mw:3;--mh:1.5"></div>
+    <!-- yorumlar -->
+    <button class="c b arrow" data-t="-1" aria-label="Önceki yorum" style="--x:0;--y:8;--w:1;--h:1;--my:9.2;--mh:1.3"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor"><path d="M10 3 5 8l5 5"/></svg></button>
+    <button class="c b arrow" data-t="1" aria-label="Sonraki yorum" style="--x:0;--y:9;--w:1;--h:1;--my:10.5;--mh:1.3"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor"><path d="m6 3 5 5-5 5"/></svg></button>
+    <div class="c b track" style="--x:1;--y:8;--w:17;--h:2;--my:9.2;--mw:5;--mh:2.6"><div class="tcards" id="tcards"></div><span class="anno" id="trackAnno" style="right:8px;bottom:6px"></span></div>
+  </section>
+
+  <!-- ============ 4. HAKKIMIZDA ============ -->
+  <section class="panel" data-scene="about" aria-label="Hakkımızda">
+    <div class="c head" style="--x:0;--y:1.9;--w:12;--h:1.1;--my:1.3;--mw:6"><h2>Hakkımızda</h2><p>Strateji, tasarım ve yazılım — fikirden yayına tek ekip.</p></div>
+    <a class="c b btn dk" href="#" data-step="11" style="--x:16;--y:2;--w:2;--h:1">İletişime geç</a>
+    <div class="c b about-t" style="--x:0;--y:3;--w:6;--h:5;--my:2.6;--mw:6;--mh:3">İddialı markalar için ayırt edici dijital ürünler ve yapay zekâ ajanları tasarlıyor, kuruyoruz. Stratejiyi, tasarımı ve yazılımı ilk fikirden son satıra kadar bir arada tutuyoruz.</div>
+    <div class="c b" id="a-about" style="--mx:0;--x:6;--y:3;--w:6;--h:5;--my:5.6;--mw:3;--mh:3"></div>
+    <div class="c b portrait" style="--x:12;--y:3;--w:6;--h:7;--mx:3;--my:5.6;--mw:3;--mh:3"><div><canvas id="portrait" style="width:100%;height:100%;display:block"></canvas><span class="sample" style="position:absolute;left:10px;bottom:8px;color:#fff;opacity:.6">ekip fotoğrafı — örnek</span></div></div>
+    <div class="c b marq" style="--x:0;--y:8;--w:12;--h:2;--my:8.6;--mw:6;--mh:1.6"><div class="marq-in" id="marq"></div><span class="anno" id="marqAnno" style="left:8px;bottom:6px"></span></div>
+  </section>
+
+  <!-- ============ 5. İLETİŞİM ============ -->
+  <section class="panel" data-scene="contact" aria-label="İletişim">
+    <div class="c head" style="--x:0;--y:1.9;--w:12;--h:1.1;--my:1.3;--mw:6"><h2>İletişim</h2><p>Bir sonraki adımı birlikte atalım.</p></div>
+    <div class="c b words" style="--x:0;--y:3;--w:6;--h:5;display:flex;flex-direction:column;justify-content:center;padding-left:calc(var(--g)*1);--my:2.6;--mw:6;--mh:2.6;padding-left:calc(var(--g)*.4)">BİRLİKTE<span>ÜRETELİM</span></div>
+    <div class="c b" id="a-contact" style="--mx:0;--x:6;--y:3;--w:6;--h:5;--my:5.2;--mw:3;--mh:3"></div>
+    <div class="c b info" style="--x:12;--y:3;--w:6;--h:5;--mx:3;--my:5.2;--mw:3;--mh:3">
+      <dl><dt>01.</dt><dd>İstanbul, Türkiye</dd><dt>02.</dt><dd>Pzt–Cum · 09:00–18:00</dd><dt>03.</dt><dd>Türkçe · English</dd></dl>
+      <span class="lab dk">Yanıt süresi: <em>1 iş günü</em></span>
+    </div>
+    <a class="c b mail" lang="en" href="mailto:hello@zengoai.com" style="--x:0;--y:8;--w:12;--h:1;--my:8.2;--mw:6;--mh:1">hello@zengoai.com</a>
+    <a class="c b btn" href="https://wa.me/902120000000" style="--x:12;--y:8;--w:3;--h:1;--mx:0;--my:9.2;--mw:3">WhatsApp</a>
+    <a class="c b btn" href="mailto:hello@zengoai.com?subject=Proje" style="--x:15;--y:8;--w:3;--h:1;--mx:3;--my:9.2;--mw:3;background:var(--ink);color:var(--bg)">Proje Başlat</a>
+    <div class="c lab" style="--x:0;--y:9.3;--w:12;--h:.5;--my:10.5;--mw:6">© <span id="yr"></span> ZENGOAI SOLUTIONS <em>· KVKK · GİZLİLİK</em></div>
+  </section>
+</div>
+<div class="vbar" id="vbar" aria-hidden="true"></div>
+
+<nav class="menu" id="menu" aria-label="Menü">
+  <button class="c b tcell" id="menuClose" aria-label="Menüyü kapat" style="--x:2;--y:0;--w:1;--h:1;--mx:2.4">×</button>
+  <a class="c b" href="#" data-step="0" style="--x:3;--y:2;--w:12;--h:1;--mx:0;--mw:6"><em>01</em>Giriş</a>
+  <a class="c b" href="#" data-step="1" style="--x:3;--y:3;--w:12;--h:1;--mx:0;--mw:6"><em>02</em>Seçili işler</a>
+  <a class="c b" href="#" data-step="4" style="--x:3;--y:4;--w:12;--h:1;--mx:0;--mw:6"><em>03</em>Hizmetler</a>
+  <a class="c b" href="#" data-step="10" style="--x:3;--y:5;--w:12;--h:1;--mx:0;--mw:6"><em>04</em>Hakkımızda</a>
+  <a class="c b" href="#" data-step="11" style="--x:3;--y:6;--w:12;--h:1;--mx:0;--mw:6"><em>05</em>İletişim</a>
+</nav>
+
+<script type="module">
+import * as THREE from "three";
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches, hoverable = matchMedia("(hover: hover)").matches;
+const root = document.documentElement, $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+
+// ================= içerik (örnek — gerçek projelerle değiştirin) =================
+const WORKS = [
+  { name: "nöra destek", desc: ["Lojistik şirketi için 7/24 çalışan, talepleri ilk saniyede yanıtlayan destek ajanı.", "Mevcut CRM'e bağlı, tonu markaya göre ayarlanmış, gerektiğinde insana devreden bir sistem."],
+    tech: ["LLM", "RAG", "TS", "API", "N8N"], t: { bg: "#0a1433", fg: "#ffffff", sub: "rgba(255,255,255,.55)", acc: "#ff6a00", vis: "chat" }, title: "Her talebe<br>ilk saniyede<br>yanıt" },
+  { name: "finakış", desc: ["Muhasebe ekibinin ay sonu kapanışını günlerden saatlere indiren finans otomasyonu.", "e-Fatura okuma, mutabakat ve onay akışı tek, sade bir panelde."],
+    tech: ["PY", "OCR", "ERP", "SQL", "API"], t: { bg: "#f4efe6", fg: "#16171c", sub: "rgba(22,23,28,.55)", acc: "#1b2d6e", vis: "bars" }, title: "Kapanış<br>artık saatler<br>sürüyor" },
+  { name: "atlas analitik", desc: ["Perakende zinciri için 200+ mağazanın verisini tek ekranda toplayan karar paneli.", "Tahmin modelleri, uyarılar ve sabah özetiyle yöneticiler güne cevaplarla başlıyor."],
+    tech: ["DBT", "PY", "ML", "TS", "GCP"], t: { bg: "#0d2622", fg: "#eafff8", sub: "rgba(234,255,248,.55)", acc: "#3ee0b0", vis: "dots" }, title: "Veriden<br>karara<br>tek adım" },
+];
+const SERVICES = [
+  ["yapay zekâ", "ajanları", "Destek, satış ve operasyonu devralan, ekibinizle aynı dili konuşan ajanlar."],
+  ["süreç", "otomasyonu", "Tekrarlayan işleri uçtan uca otomatikleştiren, ölçülebilir iş akışları."],
+  ["veri", "analitiği", "Dağınık veriyi karar verdiren tek bir panele dönüştüren altyapı."],
+  ["web & mobil", "geliştirme", "Hızlı, erişilebilir ve ölçeklenebilir ürünler; ilk satırdan yayına."],
+  ["arayüz", "tasarımı", "Sezgisel hissettiren, markanızın karakterini taşıyan arayüzler."],
+  ["ürün", "ortaklığı", "Fikirden yayına uzun soluklu ortaklık: ölçer, öğrenir, büyütürüz."],
+];
+const QUOTES = [
+  ["ZenGo ekibiyle çalışmak şimdiye kadarki en verimli iş birliğimizdi. Sadece istediğimizi yapmadılar, neye ihtiyacımız olduğunu birlikte bulduk.", "Elif K.", "Operasyon Direktörü · Kıyı Lojistik"],
+  ["Ajan devreye girdiğinden beri destek ekibimiz yalnızca gerçekten insan isteyen işlere bakıyor. Süreç baştan sona şeffaftı.", "Mert A.", "Kurucu · Pera Hukuk"],
+  ["Teslim edilen panelden de, oraya giden süreçten de son derece memnunuz. Her adım önceden konuşuldu.", "Selin T.", "CFO · Mavi Enerji"],
+  ["Teknik derinlik ile tasarım hassasiyetini aynı masada bulmak nadir. Ekip gerçekten düşünerek çalışıyor.", "Can D.", "Ürün Lideri · Atlas Perakende"],
+  ["İlk görüşmeden yayına kadar her şey planlandığı gibi ilerledi. Sonuçlar ilk aydan ölçülebilir oldu.", "Zeynep Y.", "Genel Müdür · Nova Klinik"],
+  ["Hızlı, net ve titiz. Bir sonraki projemizi de beklemeden onlarla planladık.", "Burak S.", "CTO · Rota Yazılım"],
+];
+const TECH = ["OpenAI", "Claude", "Python", "TypeScript", "React", "Node.js", "PostgreSQL", "n8n", "Docker", "Three.js"];
+
+// adımlar: 0 giriş · 1-3 işler · 4-9 hizmetler · 10 hakkımızda · 11 iletişim
+const STEPS = [{ s: "hero" }, ...WORKS.map((_, i) => ({ s: "work", i })), ...SERVICES.map((_, i) => ({ s: "svc", i })), { s: "about" }, { s: "contact" }];
+
+// ================= ızgara birimi =================
+let G = 75, OX = 45, OY = 0, mobile = false, stepH = 800;
+function layout() {
+  const W = innerWidth, H = innerHeight; mobile = W <= 760;
+  if (mobile) { G = W / 6.4; OX = (W - 6 * G) / 2; OY = Math.max(0, (H - 14 * G) / 2); }
+  else { G = Math.min(W / 19.2, H / 11.4); OX = (W - 18 * G) / 2; OY = Math.max(0, (H - 11.4 * G) / 2.6); }
+  root.style.setProperty("--g", G + "px"); root.style.setProperty("--ox", OX + "px"); root.style.setProperty("--oy", OY + "px");
+  stepH = Math.round(H * .85); $("#spacer").style.height = (stepH * (STEPS.length - 1) + H) + "px";
+}
+layout();
+
+// ================= yumuşak kaydırma =================
+const lenis = reduced ? null : new Lenis({ lerp: .09, smoothWheel: true, wheelMultiplier: .9 });
+if (lenis) { gsap.ticker.add(t => lenis.raf(t * 1000)); gsap.ticker.lagSmoothing(0); }
+const goStep = n => { const y = Math.max(0, Math.min(STEPS.length - 1, n)) * stepH; lenis ? lenis.scrollTo(y, { duration: 1.4 }) : scrollTo(0, y); };
+document.addEventListener("click", e => { const a = e.target.closest("[data-step]"); if (!a) return; e.preventDefault(); menu.classList.remove("open"); goStep(+a.dataset.step); });
+const menu = $("#menu"); $("#menuBtn").onclick = () => menu.classList.add("open"); $("#menuClose").onclick = () => menu.classList.remove("open");
+addEventListener("keydown", e => { if (e.key === "Escape") menu.classList.remove("open"); });
+
+// ================= saat =================
+const clock = () => $("#clock").textContent = new Intl.DateTimeFormat("tr-TR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul" }).format(new Date());
+clock(); setInterval(clock, 15000); $("#yr").textContent = new Date().getFullYear();
+
+// ================= iş ekranları (CSS ile çizilir, görsel dosyası yok) =================
+function screen(w, kind) { const t = w.t, cq = kind === "mob";
+  const vis = t.vis === "chat" ? `<div style="position:absolute;right:7cqw;top:${cq ? 58 : 22}%;width:${cq ? 86 : 34}cqw;display:grid;gap:2.2cqw">${["62%", "80%", "48%", "70%"].map((ww, k) => `<span style="justify-self:${k % 2 ? "start" : "end"};width:${ww};height:${cq ? 9 : 4.2}cqw;border-radius:${cq ? 4 : 1.6}cqw;background:${k % 2 ? "rgba(255,255,255,.12)" : t.acc};opacity:${k % 2 ? 1 : .9}"></span>`).join("")}</div>`
+    : t.vis === "bars" ? `<div style="position:absolute;right:7cqw;bottom:${cq ? 6 : 14}%;width:${cq ? 86 : 36}cqw;height:${cq ? 34 : 52}%;display:flex;align-items:end;gap:1.8cqw">${[34, 52, 41, 68, 57, 83, 74, 96].map((h, k) => `<i style="flex:1;height:${h}%;background:${k === 7 ? t.acc : "rgba(22,23,28,.14)"}"></i>`).join("")}</div>`
+    : `<div style="position:absolute;right:7cqw;top:${cq ? 56 : 20}%;display:grid;grid-template-columns:repeat(${cq ? 6 : 7},${cq ? 9 : 3.6}cqw);gap:${cq ? 4.4 : 2.2}cqw">${Array.from({ length: cq ? 24 : 35 }, (_, k) => `<i style="aspect-ratio:1;border-radius:50%;border:1px solid ${t.sub};${(k * 7) % 5 === 0 ? `background:${t.acc};border-color:${t.acc}` : ""}"></i>`).join("")}</div>`;
+  const fs = cq ? 11 : 5.2;
+  return `<div class="scr" style="background:${t.bg};color:${t.fg}">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:${cq ? 6 : 2.4}cqw ${cq ? 7 : 7}cqw">
+      <b style="font-weight:600;font-size:${cq ? 5.5 : 2}cqw;letter-spacing:.02em"><i style="display:inline-block;width:.6em;height:.6em;border-radius:50%;background:${t.acc};margin-right:.4em"></i>${w.name}</b>
+      ${cq ? `<i style="width:6cqw;height:2px;background:${t.fg};box-shadow:0 1.6cqw 0 ${t.fg}"></i>` : `<span style="display:flex;gap:2.4cqw;font-size:1.2cqw;color:${t.sub}">Ürün<span>Çözümler</span><span>Hakkında</span><span>Blog</span><b style="background:${t.acc};color:#fff;padding:.3cqw 1cqw;border-radius:1cqw;font-weight:500">İletişim</b></span>`}
+    </div>
+    <h4 style="margin:${cq ? 10 : 4}cqw 0 0 7cqw;font-weight:600;font-size:${fs}cqw;line-height:1.05;letter-spacing:-.01em">${w.title}</h4>
+    <p style="margin:${cq ? 4 : 2}cqw 0 0 7cqw;width:${cq ? 80 : 38}cqw;font-size:${cq ? 3.4 : 1.25}cqw;line-height:1.5;color:${t.sub}">${w.desc[0]}</p>
+    <div style="margin:${cq ? 5 : 2.4}cqw 0 0 7cqw;display:flex;gap:1.4cqw"><b style="font-weight:500;font-size:${cq ? 3.2 : 1.2}cqw;background:${t.acc};color:#fff;padding:${cq ? "1.6cqw 5cqw" : ".7cqw 2.6cqw"};border-radius:9cqw">Demo iste</b><b style="font-weight:500;font-size:${cq ? 3.2 : 1.2}cqw;border:1px solid ${t.sub};padding:${cq ? "1.6cqw 5cqw" : ".7cqw 2.6cqw"};border-radius:9cqw">Nasıl çalışır</b></div>
+    ${vis}</div>`; }
+function thumbs(w) { return `<div class="scr" style="display:grid;grid-template-columns:1fr 1fr;gap:4%;padding:5%;background:transparent">${[0, 1, 2, 3].map(k => `<div style="position:relative;overflow:hidden;background:${k % 3 ? "#e7e7ea" : w.t.bg}"><div style="position:absolute;left:8%;top:14%;width:${40 + k * 9}%;height:9%;background:${k % 3 ? "rgba(0,0,0,.18)" : w.t.fg};opacity:.8"></div><div style="position:absolute;left:8%;top:32%;width:60%;height:5%;background:${k % 3 ? "rgba(0,0,0,.1)" : w.t.sub}"></div><div style="position:absolute;right:8%;bottom:12%;width:28%;height:32%;background:${w.t.acc};opacity:${k % 2 ? .35 : .9}"></div></div>`).join("")}</div>`; }
+const W = k => $(`[data-w="${k}"]`);
+function setWork(i, animate) { const w = WORKS[i];
+  W("main").innerHTML = screen(w, "main"); W("mob").innerHTML = `<div class="scr" style="inset:5%">${screen(w, "mob").replace('class="scr"', 'class="scr" style="position:absolute;inset:0"')}</div>`;
+  W("t0").innerHTML = thumbs(w); W("t1").innerHTML = thumbs({ ...w, t: { ...w.t, bg: w.t.acc } });
+  w.tech.forEach((x, k) => W("i" + k).textContent = x);
+  W("desc").innerHTML = w.desc.map(p => `<p>${p}</p>`).join(""); W("name").textContent = w.name;
+  if (animate) reveal(["main", "t0", "t1", "mob", "desc", "name"].map(W).concat(w.tech.map((_, k) => W("i" + k))), .03); }
+$$("[data-go]").forEach(b => b.onclick = () => { const st = STEPS[cur]; if (st.s !== "work") return; const n = (st.i + +b.dataset.go + WORKS.length) % WORKS.length; goStep(1 + n); });
+
+// ================= hizmetler =================
+$("#sq").innerHTML = SERVICES.map(() => "<i></i>").join("");
+$("#tcards").innerHTML = QUOTES.map(([q, n, r]) => `<div class="tcard"><q>${q}</q><span>${n} <em>· ${r}</em> <span class="sample">örnek</span></span></div>`).join("");
+let typeTimer = 0, tIndex = 0;
+function typeText(el, txt) { clearInterval(typeTimer); if (reduced) { el.innerHTML = txt; return; } let n = 0; el.innerHTML = '<span class="caret"></span>';
+  typeTimer = setInterval(() => { n += 1; el.innerHTML = txt.slice(0, n) + '<span class="caret"></span>'; if (n >= txt.length) clearInterval(typeTimer); }, 22); }
+function setTrack(i) { const per = mobile ? 1 : 2, el = $("#tcards"), cw = el.parentElement.clientWidth / per; [...el.children].forEach(c => c.style.width = cw + "px");
+  tIndex = Math.max(0, Math.min(QUOTES.length - per, i)); el.style.transform = `translate3d(${-tIndex * cw}px,0,0)`; $("#trackAnno").textContent = `translateX: ${Math.round(-tIndex * cw)}px`; }
+$$("[data-t]").forEach(b => b.onclick = () => setTrack(tIndex + +b.dataset.t));
+const counted = new Set();
+function setSvc(i, animate) { const [a, b, d] = SERVICES[i];
+  [...$("#sq").children].forEach((q, k) => q.classList.toggle("on", k === i)); $$(".htitle .w").forEach((w, k) => w.classList.toggle("on", k === i % 3));
+  $("#svcT").innerHTML = `${a}<br><b>${b}</b>`; typeText($("#typed"), d); setTrack(i);
+  const panel = $(".svcpanel"), stats = i === SERVICES.length - 1; panel.classList.toggle("stats", stats);
+  if (stats) $$("[data-count]").forEach(el => { if (counted.has(el)) return; counted.add(el); const o = { n: 0 }; gsap.to(o, { n: +el.dataset.count, duration: reduced ? .01 : 1.6, ease: "power2.out", onUpdate: () => el.textContent = Math.round(o.n) }); });
+  if (animate) reveal([$("#svcT")], 0); }
+
+// dişliler: kendi ürettiğimiz dişli profilleri, dönme hızları diş sayısıyla ters orantılı
+function gearPath(teeth, r) { const d = 7, n = teeth * 4; let s = ""; for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2, rr = (k % 4 < 2) ? r + d / 2 : r - d / 2; s += (k ? "L" : "M") + (Math.cos(a) * rr).toFixed(1) + " " + (Math.sin(a) * rr).toFixed(1); } return s + "Z"; }
+const GEARS = [[0, 0, 44, 96], [-118, -52, 14, 28], [70, -38, 20, 42], [-40, 64, 12, 24], [104, 64, 16, 34], [-140, 36, 10, 20], [12, -6, 8, 15]];
+$("#gears").innerHTML = `<circle r="150" fill="none" stroke="#63636c" stroke-opacity=".5" stroke-width=".8"/>` + GEARS.map(([x, y, t, r], k) => `<g transform="translate(${x} ${y})"><g data-gear="${k}"><path d="${gearPath(t, r)}" fill="none" stroke="${k === 2 ? "#ff6a00" : "#63636c"}" stroke-width=".9"/><circle r="${r * .22}" fill="none" stroke="#63636c" stroke-width=".7"/></g></g>`).join("");
+const gearEls = $$("[data-gear]"); let gearRot = 0, gearSpeed = 22;
+
+// ================= hakkımızda: portre yerine monokrom nokta kompozisyonu =================
+$("#marq").innerHTML = TECH.concat(TECH).map(t => `<span>${t}</span>`).join("");
+function drawPortrait() { const c = $("#portrait"), r = c.getBoundingClientRect(); if (!r.width) return; const d = Math.min(devicePixelRatio || 1, 2); c.width = r.width * d; c.height = r.height * d;
+  const x = c.getContext("2d"); x.scale(d, d); const w = r.width, h = r.height; const g = x.createLinearGradient(0, 0, w, h); g.addColorStop(0, "#2a2a2e"); g.addColorStop(1, "#0b0b0d"); x.fillStyle = g; x.fillRect(0, 0, w, h);
+  const step = Math.max(5, w / 70); for (let yy = step / 2; yy < h; yy += step) for (let xx = step / 2; xx < w; xx += step) {   // yarım ton ensō
+    const cx = w * .52, cy = h * .46, R = Math.min(w, h) * .3, dd = Math.hypot(xx - cx, yy - cy), ang = Math.atan2(yy - cy, xx - cx);
+    const arc = (ang + Math.PI * 2 + .9) % (Math.PI * 2) < Math.PI * 1.78 ? Math.exp(-Math.pow((dd - R) / (R * .1 + 6), 2)) : 0;
+    const v = .1 + arc * .9 + Math.random() * .05; x.fillStyle = `rgba(240,240,240,${Math.min(1, v)})`; x.beginPath(); x.arc(xx, yy, step * .42 * Math.sqrt(v), 0, Math.PI * 2); x.fill(); }
+  x.fillStyle = "#ff6a00"; x.beginPath(); x.arc(w * .52 + Math.cos(-.9) * Math.min(w, h) * .3, h * .46 + Math.sin(-.9) * Math.min(w, h) * .3, step * .9, 0, Math.PI * 2); x.fill(); }
+
+// ================= hücre açılışı: clip-path ile, değer canlı etiketlenir =================
+function reveal(els, stagger = .045) { if (reduced) return; els.filter(Boolean).forEach((el, k) => { const o = { v: 100 };
+  gsap.fromTo(o, { v: 100 }, { v: 0, duration: .9, delay: k * stagger, ease: "power3.inOut", onUpdate: () => el.style.clipPath = `inset(0 0 ${o.v.toFixed(1)}% 0)`, onComplete: () => el.style.clipPath = "" }); }); }
+
+// ================= nokta küresi (Three.js, piksel koordinatlı ortografik kamera) =================
+const canvas = $("#gl"); let sphere = null;
+try {
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false, powerPreference: "high-performance" });
+  const PR = Math.min(devicePixelRatio || 1, 2); renderer.setPixelRatio(PR);
+  const scene = new THREE.Scene(), cam = new THREE.OrthographicCamera(0, 1, 0, -1, -2000, 2000);
+  const N = mobile ? 20000 : 36000, pos = new Float32Array(N * 3), rnd = new Float32Array(N);
+  const GA = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < N; i++) { const y = 1 - (i / (N - 1)) * 2, r = Math.sqrt(1 - y * y), th = GA * i; pos[i * 3] = Math.cos(th) * r; pos[i * 3 + 1] = y; pos[i * 3 + 2] = Math.sin(th) * r; rnd[i] = Math.random(); }   // Fibonacci küresi
+  const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(pos, 3)); geo.setAttribute("aRand", new THREE.BufferAttribute(rnd, 1));
+  // 3B simpleks gürültü: Ashima Arts / Stefan Gustavson, "webgl-noise" (MIT lisansı)
+  const NOISE = `vec3 mod289(vec3 x){return x-floor(x*(1./289.))*289.;}vec4 mod289(vec4 x){return x-floor(x*(1./289.))*289.;}vec4 permute(vec4 x){return mod289(((x*34.)+10.)*x);}vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-.85373472095314*r;}
+float snoise(vec3 v){const vec2 C=vec2(1./6.,1./3.);const vec4 D=vec4(0.,.5,1.,2.);vec3 i=floor(v+dot(v,C.yyy));vec3 x0=v-i+dot(i,C.xxx);vec3 g=step(x0.yzx,x0.xyz);vec3 l=1.-g;vec3 i1=min(g.xyz,l.zxy);vec3 i2=max(g.xyz,l.zxy);vec3 x1=x0-i1+C.xxx;vec3 x2=x0-i2+C.yyy;vec3 x3=x0-D.yyy;i=mod289(i);
+vec4 p=permute(permute(permute(i.z+vec4(0.,i1.z,i2.z,1.))+i.y+vec4(0.,i1.y,i2.y,1.))+i.x+vec4(0.,i1.x,i2.x,1.));float n_=.142857142857;vec3 ns=n_*D.wyz-D.xzx;vec4 j=p-49.*floor(p*ns.z*ns.z);vec4 x_=floor(j*ns.z);vec4 y_=floor(j-7.*x_);vec4 x=x_*ns.x+ns.yyyy;vec4 y=y_*ns.x+ns.yyyy;vec4 h=1.-abs(x)-abs(y);
+vec4 b0=vec4(x.xy,y.xy);vec4 b1=vec4(x.zw,y.zw);vec4 s0=floor(b0)*2.+1.;vec4 s1=floor(b1)*2.+1.;vec4 sh=-step(h,vec4(0.));vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy;vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;vec3 p0=vec3(a0.xy,h.x);vec3 p1=vec3(a0.zw,h.y);vec3 p2=vec3(a1.xy,h.z);vec3 p3=vec3(a1.zw,h.w);
+vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;vec4 m=max(.5-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.);m=m*m;return 105.*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));}`;
+  const U = { uT: { value: 0 }, uC: { value: new THREE.Vector2(innerWidth / 2, innerHeight / 2) }, uR: { value: 120 }, uAmp: { value: .1 }, uFreq: { value: 1.3 }, uRip: { value: 0 }, uFold: { value: 0 },
+    uRot: { value: new THREE.Vector2(0, 0) }, uMouse: { value: new THREE.Vector2(-9999, -9999) }, uPush: { value: 0 }, uA: { value: new THREE.Color("#2a2a30") }, uB: { value: new THREE.Color("#6a6a74") }, uPR: { value: PR }, uAlpha: { value: .62 } };
+  const mat = new THREE.ShaderMaterial({ uniforms: U, transparent: true, depthWrite: false, depthTest: false,
+    vertexShader: `${NOISE}
+      attribute float aRand; uniform float uT, uR, uAmp, uFreq, uRip, uFold, uPush, uPR; uniform vec2 uC, uRot, uMouse; varying float vD; varying float vR;
+      void main(){
+        vec3 p = position;
+        float cy = cos(uRot.x), sy = sin(uRot.x); p = vec3(p.x * cy + p.z * sy, p.y, -p.x * sy + p.z * cy);   // y ekseni
+        float cx = cos(uRot.y), sx = sin(uRot.y); p = vec3(p.x, p.y * cx - p.z * sx, p.y * sx + p.z * cx);     // x ekseni
+        float n = snoise(p * uFreq + vec3(0., uT * .22, uT * .13));
+        float rip = sin(atan(p.y, p.x) * 18. + uT * 1.4) * sin(p.z * 9. - uT) * uRip;                            // dalgalı kenar (geçişlerde)
+        float fold = snoise(vec3(p.x * 3.2, p.y * .8 + uT * .15, p.z * 3.2)) * uFold;                            // kıvrımlı yüzey (hakkımızda)
+        p *= 1. + n * uAmp + rip + fold;
+        vec2 s = uC + vec2(p.x, -p.y) * uR;                                                                       // ekran pikseli
+        vec2 dv = s - uMouse; float d = length(dv); float k = smoothstep(uR * .9, 0., d) * uPush; s += normalize(dv + 1e-4) * k * uR * .22;
+        gl_Position = projectionMatrix * vec4(s.x, -s.y, p.z * uR, 1.);
+        vD = p.z * .5 + .5; vR = aRand;
+        gl_PointSize = (.7 + vD * .45) * uPR;
+      }`,
+    fragmentShader: `uniform vec3 uA, uB; uniform float uAlpha; varying float vD; varying float vR;
+      void main(){ vec3 c = mix(uA, uB, clamp(vD * .8 + vR * .3, 0., 1.)); gl_FragColor = vec4(c, uAlpha * mix(.16, .9, pow(1. - vD, 1.6))); }` });
+  const pts = new THREE.Points(geo, mat); pts.frustumCulled = false; scene.add(pts);
+  const resize = () => { renderer.setSize(innerWidth, innerHeight, false); cam.left = 0; cam.right = innerWidth; cam.top = 0; cam.bottom = -innerHeight; cam.updateProjectionMatrix(); };
+  resize(); addEventListener("resize", resize);
+  // hedefler: her adımın çapası + biçim ve renk
+  const tgt = { cx: innerWidth / 2, cy: innerHeight / 2, r: 120, amp: .1, freq: 1.3, rip: 0, fold: 0, a: new THREE.Color("#2a2a30"), b: new THREE.Color("#6a6a74") };
+  let yaw = 0, pitch = 0, vyaw = 0, mouseIn = false; const mouse = { x: -9999, y: -9999 };
+  addEventListener("pointermove", e => { mouse.x = e.clientX; mouse.y = e.clientY; mouseIn = e.pointerType === "mouse"; }, { passive: true });
+  document.addEventListener("pointerleave", () => mouseIn = false);
+  sphere = {
+    target(el, look) { const r = el.getBoundingClientRect(); tgt.cx = r.left + r.width / 2; tgt.cy = r.top + r.height / 2; tgt.r = Math.min(r.width, r.height) * (look.k ?? .27);
+      tgt.amp = look.amp ?? .1; tgt.freq = look.freq ?? 1.3; tgt.fold = look.fold ?? 0; tgt.a.set(look.a); tgt.b.set(look.b);
+      U.uRip.value = reduced ? 0 : .05; vyaw += reduced ? 0 : .9; },                                            // her geçişte kısa bir dalgalanma + dönüş itkisi
+    tick(dt, t) { const e = 1 - Math.exp(-dt * 4.2), e2 = 1 - Math.exp(-dt * 2.4);
+      U.uT.value = reduced ? 0 : t; U.uC.value.x += (tgt.cx - U.uC.value.x) * e; U.uC.value.y += (tgt.cy - U.uC.value.y) * e; U.uR.value += (tgt.r - U.uR.value) * e;
+      U.uAmp.value += (tgt.amp - U.uAmp.value) * e2; U.uFreq.value += (tgt.freq - U.uFreq.value) * e2; U.uFold.value += (tgt.fold - U.uFold.value) * e2; U.uRip.value *= Math.exp(-dt * 1.6);
+      U.uA.value.lerp(tgt.a, e2); U.uB.value.lerp(tgt.b, e2);
+      vyaw *= Math.exp(-dt * 1.8); yaw += (reduced ? 0 : .12 + vyaw) * dt; pitch = Math.sin(t * .17) * .25; U.uRot.value.set(yaw, pitch);
+      U.uMouse.value.set(mouse.x, mouse.y); U.uPush.value += ((mouseIn && hoverable ? 1 : 0) - U.uPush.value) * (1 - Math.exp(-dt * 3));
+      renderer.render(scene, cam); },
+    snap() { U.uC.value.set(tgt.cx, tgt.cy); U.uR.value = tgt.r; },
+  };
+} catch (e) { canvas.style.display = "none"; }
+
+// her adımda kürenin duracağı hücre ve görünümü
+const LOOK = {
+  hero: { a: "#1f1f24", b: "#5f5f68", amp: .06, freq: 1.1, k: .27 },
+  work: { a: "#1b2d6e", b: "#7d93e8", amp: .12, freq: 1.7, k: .42 },
+  svc: [{ a: "#1f1f24", b: "#77777f" }, { a: "#6b4a33", b: "#c9a083" }, { a: "#c2560f", b: "#ffb07a" }, { a: "#1b2d6e", b: "#8ea0e6" }, { a: "#4a4a52", b: "#ff8a3d" }, { a: "#ff6a00", b: "#ffc89e" }],
+  about: { a: "#26262b", b: "#8a8a92", amp: .05, freq: 1.1, fold: .14, k: .3 },
+  contact: { a: "#ff6a00", b: "#2a2a30", amp: .12, freq: 1.4, k: .3 },
+};
+function anchorFor(st) { if (st.s === "hero") return [$("#a-hero"), LOOK.hero];
+  if (st.s === "work") return [mobile ? $("#a-work-m") : $("#a-work"), LOOK.work];
+  if (st.s === "svc") { const last = st.i === SERVICES.length - 1; return [last ? $("#a-svc-s") : $("#a-svc"), { ...LOOK.svc[st.i], amp: .05 + st.i * .01, freq: 1.3 + st.i * .12, k: last ? .3 : .3 }]; }
+  return [$("#a-" + st.s), LOOK[st.s]]; }
+
+// ================= adım yönetimi =================
+const panels = Object.fromEntries($$(".panel").map(p => [p.dataset.scene, p]));
+let cur = -1, curScene = "";
+function go(n, first) { if (n === cur) return; const st = STEPS[n], prev = STEPS[cur]; cur = n;
+  if (st.s !== curScene) {
+    if (curScene) { const old = panels[curScene]; gsap.to(old, { opacity: 0, duration: reduced ? 0 : .35, onComplete: () => { if (STEPS[cur].s !== old.dataset.scene) old.classList.remove("on"); } }); }
+    const p = panels[st.s]; p.classList.add("on"); gsap.fromTo(p, { opacity: 0 }, { opacity: 1, duration: reduced ? 0 : .5 }); curScene = st.s;
+    if (st.s === "work") setWork(st.i, false); if (st.s === "svc") setSvc(st.i, false); if (st.s === "about") requestAnimationFrame(drawPortrait);
+    reveal([...p.querySelectorAll(".c")].filter(c => c.offsetParent !== null || getComputedStyle(c).display !== "none"), first ? .05 : .025);
+    if (st.s === "hero" && !reduced) heroIntro();
+  } else if (st.s === "work") setWork(st.i, true); else if (st.s === "svc") setSvc(st.i, true);
+  if (sphere) { const [el, look] = anchorFor(st); sphere.target(el, look); if (first) sphere.snap(); } }
+// giriş çerçevesi: clip-path ortadan açılır, değerleri köşelerde canlı yazılır
+function heroIntro() { const f = $("#heroFrame"), labs = f.querySelectorAll("[data-clip]"), o = { v: 50 };
+  gsap.fromTo(o, { v: 50 }, { v: 0, duration: 1.4, ease: "power3.inOut", onUpdate: () => { const s = `clip-path: inset(${o.v.toFixed(0)}px ${o.v.toFixed(0)}px ${o.v.toFixed(0)}px ${o.v.toFixed(0)}px)`; f.style.clipPath = `inset(${o.v}% ${o.v}% ${o.v}% ${o.v}%)`; labs.forEach(l => l.textContent = s); },
+    onComplete: () => { f.style.clipPath = ""; gsap.to(labs, { opacity: 0, duration: .6, delay: .6, onComplete: () => gsap.set(labs, { opacity: 1, textContent: "" }) }); } }); }
+
+const stepFromScroll = () => Math.max(0, Math.min(STEPS.length - 1, Math.round(scrollY / stepH)));
+go(stepFromScroll(), true);
+addEventListener("resize", () => { layout(); if (sphere) { const [el, look] = anchorFor(STEPS[cur]); sphere.target(el, look); sphere.snap(); } if (STEPS[cur].s === "svc") setTrack(tIndex); if (STEPS[cur].s === "about") drawPortrait(); });
+
+// ================= tek döngü =================
+const rulerMark = $("#rulerMark"), vbar = $("#vbar"), marq = $("#marq"); let last = performance.now(), mx = 0;
+gsap.ticker.add(() => { const now = performance.now(), dt = Math.min(.05, (now - last) / 1000), t = now / 1000; last = now;
+  const max = Math.max(1, document.documentElement.scrollHeight - innerHeight), p = Math.min(1, scrollY / max);
+  const n = stepFromScroll(); if (n !== cur) go(n);
+  rulerMark.style.transform = `translate3d(${(p * 18 * G).toFixed(1)}px,0,0)`; vbar.style.transform = `translate3d(0,${(p * (innerHeight - 60)).toFixed(1)}px,0)`;
+  if (curScene === "svc" && !reduced) { gearRot += gearSpeed * dt; gearEls.forEach((g, k) => { const [, , teeth] = GEARS[k]; g.setAttribute("transform", `rotate(${((k % 2 ? -1 : 1) * gearRot * 44 / teeth).toFixed(2)})`); });
+    $("#gearAnno").textContent = `transform: rotate(${(-gearRot).toFixed(0)}deg)`; }
+  if (curScene === "about" && !reduced) { const half = marq.scrollWidth / 2; mx = (mx + dt * 40) % half; marq.style.transform = `translate3d(${-mx.toFixed(1)}px,0,0)`; $("#marqAnno").textContent = `translateX: ${Math.round(-mx)}px`; }
+  if (curScene === "work" && sphere) $("#workAnno").textContent = `transform: translateX(${Math.round(scrollY % stepH - stepH / 2)}px)`;
+  sphere?.tick(dt, t); });
+</script>
+</body>
+</html>

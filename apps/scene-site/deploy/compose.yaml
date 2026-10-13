@@ -1,0 +1,28 @@
+# ZenGoAi tanıtım sitesi (Sigma Scene Site). Sunucuda: /srv/zengo-site
+# Çalıştırma: docker compose -f /srv/zengo-site/deploy/compose.yaml up -d --build
+name: zengo-site
+networks:
+  coolify:
+    external: true
+services:
+  web:
+    build: { context: .., dockerfile: Dockerfile }
+    container_name: zengo-site
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/var/cache/nginx, /var/run, /tmp]
+    networks: [coolify]
+    mem_limit: 64m
+    logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: coolify
+      traefik.http.routers.zengo-site.rule: Host(`zengo.2-28-74-254.sslip.io`)
+      traefik.http.routers.zengo-site.entrypoints: https
+      traefik.http.routers.zengo-site.tls: "true"
+      traefik.http.routers.zengo-site.tls.certresolver: letsencrypt
+      traefik.http.services.zengo-site.loadbalancer.server.port: "80"
+      traefik.http.routers.zengo-site-http.rule: Host(`zengo.2-28-74-254.sslip.io`)
+      traefik.http.routers.zengo-site-http.entrypoints: http
+      traefik.http.routers.zengo-site-http.middlewares: zengo-site-https
+      traefik.http.middlewares.zengo-site-https.redirectscheme.scheme: https

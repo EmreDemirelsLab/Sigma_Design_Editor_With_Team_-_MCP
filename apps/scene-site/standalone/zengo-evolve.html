@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#151515" />
+<title>ZenGoAi | Yapay zekâ ortağınız. Evrildi.</title>
+<meta name="description" content="ZenGoAi — işletmenizi yapay zekâ ajanlarıyla evrilten teknoloji ortağı." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23151515'/%3E%3Cpath d='M16 5a11 11 0 1 0 10.6 8.2' fill='none' stroke='%23f0f0f8' stroke-width='2.6' stroke-linecap='round'/%3E%3Ccircle cx='24.6' cy='8.2' r='2.3' fill='%23ff6a00'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --bg: #151515; --bg2: #1c1c1c; --line: rgba(255,255,255,.12); --text: #f0f0f8; --muted: rgba(240,240,248,.58); --faint: rgba(240,240,248,.36);
+  --ink: #171717; --paper: #f0f0f8; --accent: #ff6a00; --accent2: #f5b90a;
+  --head: "Geist Mono", ui-monospace, monospace; --mono: "JetBrains Mono", ui-monospace, monospace; --pad: clamp(20px, 4vw, 64px);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+/* body saydam: zemin html'de; aksi hâlde body zemini negatif z-index'li tuvallerin (nokta alanı, karakter yağmuru) üstüne boyanır */
+body { margin: 0; background: transparent; color: var(--text); font-family: var(--mono); -webkit-font-smoothing: antialiased; }
+html.lenis, html.lenis body { height: auto; } .lenis.lenis-smooth { scroll-behavior: auto !important; }
+a { color: inherit; text-decoration: none; } button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+::selection { background: var(--accent); color: #fff; }
+.accent { color: var(--accent); }
+h1, h2, h3 { font-family: var(--head); margin: 0; }
+.kicker { font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: var(--faint); }
+
+/* arka plan tuvalleri */
+#dots, #glyphs, #flow { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#dots { z-index: -3; background-image: radial-gradient(circle, rgba(255,255,255,.09) 1px, transparent 1.4px); background-size: 22px 22px; background-position: 0 0; } #glyphs { z-index: -2; } #flow { z-index: 5; mix-blend-mode: difference; }
+
+/* yüzen hap menü */
+.nav { position: fixed; z-index: 50; top: 16px; left: 50%; transform: translateX(-50%); width: min(980px, calc(100% - 32px)); height: 50px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 10px 0 18px; border-radius: 999px;
+  background: rgba(28,28,28,.72); border: 1px solid rgba(255,255,255,.1); backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%); transition: transform .5s cubic-bezier(.2,.7,.1,1); }
+.nav.hide { transform: translate(-50%, -90px); }
+.brand { display: inline-flex; align-items: center; gap: 8px; font-family: var(--head); font-weight: 700; font-size: 14px; letter-spacing: -.02em; }
+.brand sup { color: var(--accent); font-size: 9px; }
+.nav-links { display: flex; gap: 26px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.nav-links a:hover { color: var(--text); }
+.pill { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 16px; border-radius: 999px; border: 1px solid rgba(255,255,255,.15); font-size: 12px; transition: background .25s, border-color .25s; }
+.pill:hover { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.3); }
+.pill .led { width: 7px; height: 7px; border-radius: 50%; background: #2bd576; box-shadow: 0 0 8px #2bd576; }
+.pill.solid { background: var(--accent); border-color: var(--accent); color: #fff; height: 46px; padding: 0 22px; font-size: 13px; }
+.pill.solid:hover { background: #ff7d22; }
+
+/* hero */
+.hero { position: relative; min-height: 100svh; padding: 0 var(--pad); display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
+#globe { position: absolute; left: 50%; top: 7vh; transform: translateX(-50%); width: min(78vh, 760px, 92vw); aspect-ratio: 1; cursor: grab; touch-action: pan-y; }
+#globe:active { cursor: grabbing; }
+.hq { position: absolute; z-index: 2; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; padding: 4px 8px; border-radius: 999px; background: rgba(21,21,21,.7); border: 1px solid rgba(255,255,255,.14); pointer-events: none; transition: opacity .3s; white-space: nowrap; }
+.hq.visitor { color: var(--accent); border-color: rgba(255,106,0,.45); }
+.hero-copy { position: relative; z-index: 3; padding-bottom: 12vh; pointer-events: none; } /* başlık kürenin üstünde: tıklamalar küreye geçsin */
+.hero-copy a, .hero-copy button { pointer-events: auto; }
+.hero h1 { font-size: clamp(48px, 7.7vw, 112px); font-weight: 800; line-height: 1; letter-spacing: -.04em; max-width: 12ch; }
+.hero-sub { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: space-between; margin-top: 34px; }
+.hero-sub p { margin: 0; max-width: 46ch; font-size: 14px; line-height: 1.7; color: var(--muted); }
+.word { display: inline-block; will-change: transform, opacity, filter; }
+
+/* istatistik + şeritler */
+.band { position: relative; padding: 36px 0 calc(max(22vw, 120px) + 40px); border-top: 1px solid var(--line); background: var(--bg); }
+.stats { display: flex; justify-content: center; gap: clamp(18px, 4vw, 60px); flex-wrap: wrap; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); padding: 0 var(--pad) 34px; }
+.stats b { color: var(--text); font-family: var(--head); font-weight: 700; }
+.marquee { overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); }
+.track { display: flex; gap: 18px; width: max-content; animation: scrollx var(--dur, 40s) linear infinite; }
+.marquee:hover .track { animation-play-state: paused; }
+@keyframes scrollx { to { transform: translateX(-50%); } }
+.logo-item { font-family: var(--head); font-weight: 700; font-size: 20px; letter-spacing: -.02em; color: rgba(240,240,248,.42); padding: 0 26px; white-space: nowrap; }
+.review { width: 340px; flex: none; padding: 22px; border-radius: 10px; background: var(--bg2); border: 1px solid rgba(255,255,255,.1); font-size: 12.5px; line-height: 1.65; color: var(--muted); }
+.review .stars { color: var(--accent2); letter-spacing: 3px; margin-bottom: 10px; font-size: 12px; }
+.review footer { margin-top: 14px; display: flex; align-items: center; gap: 10px; color: var(--text); font-size: 11.5px; }
+.review .av { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #2a2a2a; font-size: 10px; }
+.sample { font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--faint); margin-left: auto; }
+
+/* mürekkep geçişi + açık bölüm */
+.ink { position: relative; height: 0; z-index: 4; }
+.ink svg { position: absolute; left: 0; bottom: -2px; width: 100%; height: 22vw; min-height: 120px; display: block; }
+.method-intro { position: relative; z-index: 3; background: var(--paper); color: var(--ink); text-align: center; padding: 22vh var(--pad) 26vh; }
+.method-intro .kicker { color: rgba(23,23,23,.5); }
+.method-intro h2 { font-size: clamp(52px, 7.7vw, 112px); font-weight: 800; letter-spacing: -.04em; line-height: 1; margin: 18px 0 30px; }
+.method-intro p { max-width: 62ch; margin: 0 auto; font-size: 13.5px; line-height: 1.8; color: rgba(23,23,23,.72); }
+.steps-line { margin-top: 30px; font-size: 11px; letter-spacing: .26em; text-transform: uppercase; }
+
+/* sabitlenen yatay yöntem */
+.hwrap { position: relative; z-index: 3; height: 100svh; overflow: hidden; background: var(--paper); color: var(--ink); }
+.htrack { display: flex; height: 100%; width: 500vw; will-change: transform; }
+.panel { position: relative; width: 100vw; height: 100%; flex: none; display: flex; align-items: center; padding: 0 calc(var(--pad) + 2vw); overflow: hidden; }
+.ghost { position: absolute; right: 4vw; top: 50%; transform: translateY(-50%); font-family: var(--head); font-weight: 800; font-size: 46vh; line-height: 1; color: currentColor; opacity: .07; pointer-events: none; transition: transform 1.2s cubic-bezier(.2,.7,.1,1); }
+.panel .inner > * { opacity: 0; transform: translateY(26px); filter: blur(6px); transition: opacity .7s ease, transform .9s cubic-bezier(.2,.7,.1,1), filter .7s ease; }
+.panel.in .inner > * { opacity: 1; transform: none; filter: none; }
+.panel.in .inner > *:nth-child(2) { transition-delay: .08s; } .panel.in .inner > *:nth-child(3) { transition-delay: .16s; }
+.panel.in .ghost { transform: translateY(-50%) scale(1.04); }
+.panel .inner { position: relative; max-width: 620px; }
+.panel h3 { font-size: clamp(56px, 8.4vw, 124px); font-weight: 700; letter-spacing: -.04em; line-height: 1; }
+.panel .lead { margin: 26px 0 22px; font-size: 14px; line-height: 1.7; opacity: .78; }
+.panel ul { margin: 0; padding: 0; list-style: none; font-size: 12.5px; line-height: 1.6; opacity: .7; }
+.panel li { display: flex; gap: 12px; margin: 8px 0; } .panel li::before { content: "—"; opacity: .6; }
+.stepper { position: absolute; left: 50%; bottom: 6vh; transform: translateX(-50%); display: flex; align-items: center; gap: 0; font-family: var(--head); font-weight: 700; font-size: 13px; z-index: 2; }
+.stepper span { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; transition: background .3s, color .3s; }
+.stepper i { width: 44px; height: 1px; background: currentColor; opacity: .3; }
+.stepper span.on { background: var(--accent); color: #fff; }
+
+/* sizi ne yavaşlatıyor */
+.friction { position: relative; z-index: 3; background: var(--bg); padding: 18vh var(--pad); min-height: 100svh; }
+.friction h2 { font-size: clamp(40px, 5.6vw, 80px); font-weight: 800; letter-spacing: -.04em; line-height: 1.05; max-width: 16ch; }
+.friction .intro { color: var(--muted); font-size: 13.5px; margin: 20px 0 46px; max-width: 54ch; line-height: 1.7; }
+.fgrid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: start; }
+.chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.chip { padding: 12px 16px; border-radius: 999px; border: 1px solid rgba(255,255,255,.15); font-size: 12.5px; color: var(--muted); transition: all .25s; }
+.chip:hover { border-color: rgba(255,255,255,.35); color: var(--text); }
+.chip.on { background: var(--text); color: var(--ink); border-color: var(--text); }
+.map { border-radius: 12px; border: 1px solid rgba(255,255,255,.1); background: var(--bg2); padding: 26px; min-height: 300px; }
+.map h4 { margin: 0 0 16px; font-size: 11px; letter-spacing: .24em; text-transform: uppercase; color: var(--faint); font-weight: 500; }
+.map .row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; padding: 12px 0; border-top: 1px dashed rgba(255,255,255,.1); font-size: 12.5px; animation: rowin .5s cubic-bezier(.2,.7,.1,1) both; }
+.map .row b { color: var(--accent); font-weight: 500; } .map .row span:nth-child(2) { color: var(--faint); }
+.map .empty { color: var(--faint); font-size: 12.5px; line-height: 1.7; }
+@keyframes rowin { from { opacity: 0; transform: translateY(10px); } }
+
+/* iletişim + kapanış */
+.talk { position: relative; z-index: 3; background: var(--bg); padding: 4vh var(--pad) 10vh; }
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
+.card { display: flex; align-items: center; gap: 16px; padding: 22px; border-radius: 10px; border: 1px solid rgba(255,255,255,.1); background: var(--bg2); transition: border-color .25s, transform .25s; }
+.card:hover { border-color: rgba(255,255,255,.3); transform: translateY(-2px); }
+.card .ic { width: 40px; height: 40px; border-radius: 8px; display: grid; place-items: center; background: #262626; }
+.card b { display: block; font-size: 13px; } .card small { color: var(--faint); font-size: 11.5px; } .card .arr { margin-left: auto; color: var(--faint); transition: transform .25s; } .card:hover .arr { transform: translateX(4px); color: var(--accent); }
+.closing { position: relative; z-index: 3; padding: 22vh var(--pad) 18vh; background: var(--bg); overflow: hidden; }
+#field { position: absolute; inset: 0; width: 100%; height: 100%; }
+.closing h2 { position: relative; font-size: clamp(48px, 7.7vw, 112px); font-weight: 800; letter-spacing: -.04em; line-height: 1; max-width: 15ch; }
+.foot { position: relative; z-index: 3; background: var(--bg); border-top: 1px solid var(--line); padding: 56px var(--pad) 28px; font-size: 12px; color: var(--muted); }
+.fcols { display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; }
+.fcols h5 { margin: 0 0 14px; font-size: 10.5px; letter-spacing: .24em; text-transform: uppercase; color: var(--faint); font-weight: 500; }
+.fcols a { display: block; margin: 7px 0; } .fcols a:hover { color: var(--text); }
+.offices { display: flex; flex-wrap: wrap; gap: 22px; margin-top: 44px; padding-top: 22px; border-top: 1px solid var(--line); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+.offices .dot { color: var(--accent); }
+.legal { margin-top: 24px; font-size: 10.5px; color: var(--faint); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+
+@media (max-width: 860px) {
+  .nav-links { display: none; } .fgrid, .cards { grid-template-columns: 1fr; } .fcols { grid-template-columns: 1fr 1fr; }
+  #globe { top: 12vh; } .hero-copy { padding-bottom: 8vh; } .ghost { font-size: 30vh; opacity: .07; right: -4vw; }
+}
+@media (prefers-reduced-motion: reduce) { .track { animation: none; } }
+</style>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.min.js" } }</script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/SplitText.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.4/dist/lenis.min.js"></script>
+</head>
+<body>
+<canvas id="dots" aria-hidden="true"></canvas>
+<canvas id="glyphs" aria-hidden="true"></canvas>
+<canvas id="flow" aria-hidden="true"></canvas>
+
+<nav class="nav" id="nav" aria-label="Ana menü">
+  <a class="brand" href="#top"><svg width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4a12 12 0 1 0 11.6 9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="25.5" cy="7.5" r="2.6" fill="#ff6a00"/></svg>ZenGo<sup>AI</sup></a>
+  <div class="nav-links"><a href="#method">Yöntem</a><a href="#friction">Teşhis</a><a href="#talk">İletişim</a><a href="#foot">Hizmetler</a></div>
+  <a class="pill" href="#talk"><span class="led"></span>mesaj atın</a>
+</nav>
+
+<main id="top">
+  <section class="hero">
+    <canvas id="globe" aria-label="İstanbul merkezli küresel ağ"></canvas>
+    <span class="hq" id="hqLabel">İstanbul · HQ</span>
+    <span class="hq visitor" id="visLabel"></span>
+    <div class="hero-copy">
+      <h1 data-split>Yapay zekâ ortağınız. <span class="accent">Evrildi.</span></h1>
+      <div class="hero-sub">
+        <p>ZenGoAi; destek, finans ve operasyondaki tekrar eden işleri güvenilir yapay zekâ ajanlarına devreder. Siz büyümeye odaklanırsınız.</p>
+        <a class="pill solid" href="#talk">Ücretsiz teşhis →</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" aria-label="Rakamlar ve yorumlar">
+    <!-- örnek içerik — gerçek verilerle değiştirin -->
+    <div class="stats"><span><b>8+</b> yıl</span><span><b>120+</b> ajan</span><span><b>14</b> ülke</span><span><b>4.9</b> ★ ortalama</span></div>
+    <div class="marquee" style="--dur:36s"><div class="track" id="logos"></div></div>
+    <div class="marquee" style="--dur:70s; margin-top: 26px"><div class="track" id="reviews"></div></div>
+  </section>
+
+  <div class="ink" aria-hidden="true"><svg viewBox="0 0 1440 320" preserveAspectRatio="none"><path id="inkPath" fill="#f0f0f8" d=""/></svg></div>
+  <section class="method-intro" id="method">
+    <p class="kicker">[ çerçeve ]</p>
+    <h2 data-split>Zen yöntemi.</h2>
+    <p>Teknoloji her gün hızlanıyor; çoğu işletme geride kalıyor. Biz aradaki açığı kapatan yapay zekâ uzmanlarıyız: beş aşamalı, şablonsuz, eski yükü taşımayan bir yöntem.</p>
+    <p class="steps-line">Keşfet · Teşhis · Tasarım · Teslim · <span class="accent">Evrim</span></p>
+  </section>
+
+  <section class="hwrap" id="hwrap" aria-label="Beş aşamalı yöntem">
+    <div class="htrack" id="htrack"></div>
+    <div class="stepper" id="stepper"></div>
+  </section>
+
+  <section class="friction" id="friction">
+    <p class="kicker">[ teşhis ]</p>
+    <h2 data-split>Sizi ne yavaşlatıyor?</h2>
+    <p class="intro">Sürtünmeyi siz seçin, biz akışı haritalayalım. Birkaç tane işaretleyin — her biri için hangi ajanın neyi devraldığını görün.</p>
+    <div class="fgrid"><div class="chips" id="chips"></div><div class="map" id="map"><h4>Akış haritası</h4><p class="empty">Soldan en az bir sürtünme seçin.</p></div></div>
+  </section>
+
+  <section class="talk" id="talk">
+    <p class="kicker">[ bize yazın ]</p>
+    <div class="cards">
+      <a class="card" href="mailto:hello@zengoai.com"><span class="ic">✉</span><span><b>e-posta</b><small>hello@zengoai.com</small></span><span class="arr">→</span></a>
+      <a class="card" href="https://wa.me/905000000000"><span class="ic">◍</span><span><b>whatsapp</b><small>hafta içi · 09:00–19:00</small></span><span class="arr">→</span></a>
+    </div>
+  </section>
+
+  <section class="closing">
+    <canvas id="field" aria-hidden="true"></canvas>
+    <p class="kicker" style="position:relative">[ inanç ]</p>
+    <h2 data-split>Her işletme <span class="accent">evrilmeyi</span> hak eder.</h2>
+  </section>
+</main>
+
+<footer class="foot" id="foot">
+  <div class="fcols">
+    <div><h5>Hizmetler</h5><a href="#">Destek ajanları</a><a href="#">Finans otomasyonu</a><a href="#">Satış ajanları</a><a href="#">Kod ajanları</a></div>
+    <div><h5>Şirket</h5><a href="#">Hakkımızda</a><a href="#method">Yöntem</a><a href="#">Vakalar</a><a href="#">Kariyer</a></div>
+    <div><h5>Araçlar</h5><a href="#friction">Ücretsiz teşhis</a><a href="#">Yapay zekâ olgunluk testi</a><a href="#">ROI hesaplayıcı</a></div>
+    <div><h5>Takip</h5><a href="#">LinkedIn</a><a href="#">Instagram</a><a href="#">YouTube</a></div>
+  </div>
+  <div class="offices" id="offices"></div>
+  <div class="legal"><span>© <span id="yr"></span> ZenGoAi Solutions. Tüm hakları saklıdır.</span><span>KVKK · Gizlilik · Çerezler</span></div>
+</footer>
+
+<script type="module">
+import * as THREE from "three";
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const isMobile = innerWidth < 860;
+gsap.registerPlugin(ScrollTrigger, SplitText);
+
+// ================= içerik (örnek — gerçek verilerle değiştirin) =================
+const LOGOS = ["Atlas", "Nova", "Vertex", "Orbit", "Lumen", "Kuzey", "Mavi", "Delta", "Pera", "Kıta"];
+const REVIEWS = [
+  ["Destek taleplerimizin çoğu artık insan dokunmadan çözülüyor; ekip stratejiye vakit ayırıyor.", "E.K.", "Operasyon · Atlas"],
+  ["Ay sonu kapanışı üç günden yarım güne indi. Fatura ajanı her şeyi eşleştiriyor.", "M.A.", "Finans · Nova"],
+  ["Kurulum beklediğimizden hızlıydı, KVKK tarafında içimiz rahat.", "S.T.", "Hukuk · Pera"],
+  ["Satış ekibimiz her sabah hazır bir öncelik listesiyle başlıyor.", "B.Y.", "Satış · Orbit"],
+  ["Kod ajanı küçük hataları düzeltip yalnız onay bırakıyor. Sürümler hızlandı.", "C.D.", "Mühendislik · Delta"],
+];
+const STEPS = [
+  ["Keşfet", "Teknoloji projelerinin %80'i doğru soru sorulmadığı için başarısız olur.", ["Çözümle değil, rahatsız edici gerçekle başlarız", "İşinizin kağıttaki değil gerçekteki hâli", "Koddan önce netlik"]],
+  ["Teşhis", "Ölçülmeyen şey yoktur. Sürtünmeyi rakamla görürüz.", ["Darboğazlar, yeniden işler ve sessiz kayıplar", "Hangi işin ajana, hangisinin insana ait olduğu", "Önceliklendirilmiş fırsat haritası"]],
+  ["Tasarım", "Yazılım değil, sonuç reçete ederiz.", ["Her mimari karar bir iş hedefine bağlı", "İnsanı merkeze alan ajan akışları", "Taslak değil, prototip"]],
+  ["Teslim", "Benimsenmeyen kod, egoyla yazılmış borçtur.", ["Zafer yayına alınca değil, ekip kullanınca", "Kılavuzsuz, kendiliğinden anlaşılır arayüz", "Ölçülebilir ilk 30 gün"]],
+  ["Evrim", "Evrilmeyen şey zaten ölmektedir.", ["Faturalar ve iş yükleri değiştikçe ajanlar öğrenir", "Her çeyrek iş hedefinize göre ayar", "Proje değil, ortaklık"]],
+];
+const FRICTION = [
+  ["Tekrar eden destek talepleri", "Destek Ajanı", "7/24 ilk yanıt, %60 otomatik çözüm"],
+  ["Elle fatura eşleştirme", "Fatura Ajanı", "Okur, eşleştirir, onaya sunar"],
+  ["Dağınık raporlama", "Analitik Ajanı", "Tek panel, canlı metrikler"],
+  ["Yavaş teklif hazırlama", "Satış Ajanı", "Dakikalar içinde kişisel teklif"],
+  ["Eski sistemler arası veri taşıma", "Entegrasyon Ajanı", "ERP, CRM, e-posta köprüsü"],
+  ["Uzun kod inceleme kuyruğu", "Kod Ajanı", "Test yazar, düzeltir, onay bırakır"],
+  ["Ölçülemeyen pazarlama", "Pazarlama Ajanı", "Kampanya → gelir izlenebilirliği"],
+];
+const CITIES = { // ziyaretçinin şehri saat diliminden tahmin edilir
+  "Europe/Istanbul": ["İstanbul", 41.01, 28.98], "Europe/London": ["Londra", 51.5, -0.12], "Europe/Berlin": ["Berlin", 52.52, 13.4], "Europe/Paris": ["Paris", 48.86, 2.35],
+  "Europe/Amsterdam": ["Amsterdam", 52.37, 4.9], "Asia/Dubai": ["Dubai", 25.2, 55.27], "Asia/Riyadh": ["Riyad", 24.71, 46.67], "Asia/Baku": ["Bakü", 40.41, 49.87],
+  "America/New_York": ["New York", 40.71, -74.0], "America/Los_Angeles": ["Los Angeles", 34.05, -118.24], "Asia/Tokyo": ["Tokyo", 35.68, 139.69], "Asia/Singapore": ["Singapur", 1.35, 103.82],
+  "Europe/Madrid": ["Madrid", 40.42, -3.7], "Asia/Tashkent": ["Taşkent", 41.3, 69.24], "Africa/Cairo": ["Kahire", 30.04, 31.24], "Asia/Karachi": ["Karaçi", 24.86, 67.0],
+};
+const HQ = [41.01, 28.98];
+const DEST = [[51.5, -0.12], [52.52, 13.4], [25.2, 55.27], [40.71, -74.0], [24.71, 46.67], [40.41, 49.87], [52.37, 4.9], [35.68, 139.69], [48.86, 2.35], [1.35, 103.82], [30.04, 31.24]];
+
+// ================= yumuşak kaydırma + gsap =================
+const lenis = reduced ? null : new Lenis({ lerp: 0.09, smoothWheel: true });
+if (lenis) { lenis.on("scroll", ScrollTrigger.update); gsap.ticker.add(t => lenis.raf(t * 1000)); gsap.ticker.lagSmoothing(0); }
+document.querySelectorAll('a[href^="#"]').forEach(a => a.addEventListener("click", e => { const el = document.querySelector(a.getAttribute("href")); if (!el) return; e.preventDefault(); lenis ? lenis.scrollTo(el, { offset: -20 }) : el.scrollIntoView(); }));
+// menü: aşağı kaydırınca gizlen, yukarıda göster
+let lastY = 0; const nav = document.getElementById("nav");
+addEventListener("scroll", () => { const y = scrollY; nav.classList.toggle("hide", y > lastY && y > 300); lastY = y; }, { passive: true });
+
+// başlıklar kelime kelime (bulanıklıktan netleşerek)
+document.fonts.ready.then(() => document.querySelectorAll("[data-split]").forEach((el, k) => {
+  const s = SplitText.create(el, { type: "words", wordsClass: "word" });
+  if (reduced) return;
+  gsap.from(s.words, { opacity: 0, yPercent: 40, filter: "blur(10px)", duration: 1, ease: "power3.out", stagger: 0.07, delay: k === 0 ? 0.25 : 0,
+    scrollTrigger: k === 0 ? undefined : { trigger: el, start: "top 82%" } });
+}));
+
+// ================= şeritler =================
+const dup = (html) => html + html;
+document.getElementById("logos").innerHTML = dup(LOGOS.map(l => `<span class="logo-item">${l}</span>`).join(""));
+document.getElementById("reviews").innerHTML = dup(REVIEWS.map(([t, n, r]) => `<article class="review"><div class="stars">★★★★★</div>“${t}”<footer><span class="av">${n}</span>${r}<span class="sample">örnek</span></footer></article>`).join(""));
+
+
+// ================= nokta alanı: imleci izleyen ışık + tıklama dalgaları (tüm koyu bölümlerin arkasında) =================
+const dcan = document.getElementById("dots"), dctx = dcan.getContext("2d");
+const GAP = 22, BASE = .09; let DW = 0, DH = 0, dActive = 0, ripples = [];
+const cur = { x: -1e4, y: -1e4, sx: -1e4, sy: -1e4, on: false, last: 0 };
+function dResize() { const d = Math.min(devicePixelRatio || 1, 2); DW = innerWidth; DH = innerHeight; dcan.width = DW * d; dcan.height = DH * d; dctx.setTransform(d, 0, 0, d, 0, 0); dDraw(performance.now()); }
+function dDraw(now) {
+  // Soluk taban ızgarası CSS ile çizilir; tuval yalnız imleç ve dalgaların etkilediği hücreleri çizer (tüm ekranı değil).
+  dctx.clearRect(0, 0, DW, DH);
+  const t = now / 1000, waves = ripples.map(r => { const age = t - r.t, k = 1 - age / 2.2; return { x: r.x, y: r.y, rad: 380 * age, amp: 14 * k, bri: .28 * k }; });
+  const R = 170, R2 = R * R, follow = cur.on;
+  // etkilenen dikdörtgenler: imleç çevresi + her dalga halkasının dış kutusu
+  const boxes = []; if (follow) boxes.push([cur.sx - R, cur.sy - R, cur.sx + R, cur.sy + R]);
+  for (const w of waves) boxes.push([w.x - w.rad - 80, w.y - w.rad - 80, w.x + w.rad + 80, w.y + w.rad + 80]);
+  if (!boxes.length) return;
+  const x0 = Math.max(0, Math.min(...boxes.map(b => b[0]))), y0 = Math.max(0, Math.min(...boxes.map(b => b[1]))), x1 = Math.min(DW, Math.max(...boxes.map(b => b[2]))), y1 = Math.min(DH, Math.max(...boxes.map(b => b[3])));
+  const gx0 = Math.floor(x0 / GAP) * GAP + GAP / 2, gy0 = Math.floor(y0 / GAP) * GAP + GAP / 2;
+  for (let y = gy0; y < y1; y += GAP) for (let x = gx0; x < x1; x += GAP) {
+    let px = x, py = y, a = 0, size = 1;
+    if (follow) { const dx = cur.sx - x, dy = cur.sy - y, d2 = dx * dx + dy * dy;
+      if (d2 < R2) { const f = 1 - Math.sqrt(d2) / R, e = f * f * (3 - 2 * f); px += dx * e * .14; py += dy * e * .14; a += e * .55; size += e * .9; } }
+    for (const w of waves) { const dx = x - w.x, dy = y - w.y, dist = Math.sqrt(dx * dx + dy * dy), off = dist - w.rad;
+      if (off > -80 && off < 80) { const c = Math.cos(off / 80 * Math.PI * .5), inv = dist > .001 ? 1 / dist : 0; px += dx * inv * c * w.amp; py += dy * inv * c * w.amp; a += w.bri * Math.max(0, c); } }
+    if (a < .02) continue;
+    const A = Math.min(1, .09 + a); dctx.fillStyle = A > .3 ? `rgba(255,${(255 - (A - .3) * 180) | 0},${(255 - (A - .3) * 330) | 0},${A})` : `rgba(255,255,255,${A})`;
+    const q = size * 1.6; dctx.fillRect(px - q / 2, py - q / 2, q, q);   // daire yerine kare: çok daha hızlı, 1-2px'te fark edilmez
+  }
+}
+function dTick(now) {
+  const t = now / 1000; ripples = ripples.filter(r => t - r.t < 2.2);
+  if (cur.on) { cur.sx += (cur.x - cur.sx) * .14; cur.sy += (cur.y - cur.sy) * .14; }
+  const moving = cur.on && (Math.abs(cur.x - cur.sx) + Math.abs(cur.y - cur.sy) > .3 || now - cur.last < 400);
+  if (moving || ripples.length) { dDraw(now); dActive = 1; }
+  else if (dActive) { dDraw(now); dActive = 0; }       // son kare: dinlenme hâli
+}
+dResize(); addEventListener("resize", dResize);
+if (!reduced) {
+  addEventListener("pointermove", e => { if (e.pointerType === "touch") return; cur.x = e.clientX; cur.y = e.clientY; if (!cur.on) { cur.sx = cur.x; cur.sy = cur.y; } cur.on = true; cur.last = performance.now(); }, { passive: true });
+  document.addEventListener("pointerleave", () => { cur.on = false; dActive = 1; });
+  addEventListener("pointerdown", e => { if (e.target.closest?.("a,button,input,textarea,select,#globe")) return; if (ripples.length >= 6) ripples.shift(); ripples.push({ x: e.clientX, y: e.clientY, t: performance.now() / 1000 }); }, { passive: true });
+}
+
+// ================= arka plan: çok dilli karakter yağmuru (yalnız hero'da) =================
+const glyphs = document.getElementById("glyphs"), gctx = glyphs.getContext("2d");
+const CHARS = "气鱼中文雷ひもふ너사머德ضزئşğıöüçİŞĞ01λΣΩ∆ж".split("");
+let gItems = [], gAlpha = 1;
+function gResize() { const d = Math.min(devicePixelRatio || 1, 2); glyphs.width = innerWidth * d; glyphs.height = innerHeight * d; gctx.setTransform(d, 0, 0, d, 0, 0);
+  gItems = Array.from({ length: isMobile ? 40 : 90 }, () => ({ x: Math.random() * innerWidth, y: Math.random() * innerHeight, s: [11, 14, 18, 24][Math.floor(Math.random() * 4)], v: .15 + Math.random() * .5, c: CHARS[Math.floor(Math.random() * CHARS.length)], a: .05 + Math.random() * .16, t: Math.random() * 100 })); }
+gResize(); addEventListener("resize", gResize);
+ScrollTrigger.create({ trigger: ".hero", start: "top top", end: "bottom top", onUpdate: s => gAlpha = 1 - s.progress });
+let gLast = 0;
+function gTick(now = performance.now()) {
+  if (gAlpha <= .01) { if (gLast >= 0) { gctx.clearRect(0, 0, innerWidth, innerHeight); gLast = -1; } return; }
+  const dt = gLast > 0 ? Math.min(3, (now - gLast) / 16.67) : 1; gLast = now;
+  gctx.clearRect(0, 0, innerWidth, innerHeight); gctx.textAlign = "center";
+  for (const size of [11, 14, 18, 24]) { gctx.font = `400 ${size}px "JetBrains Mono", monospace`;
+    for (const g of gItems) { if (g.s !== size) continue;
+      g.y -= reduced ? 0 : g.v * dt; g.t += .01 * dt;
+      if (g.y < -20) { g.y = innerHeight + 20; g.x = Math.random() * innerWidth; g.c = CHARS[Math.floor(Math.random() * CHARS.length)]; }
+      if (Math.random() < .002) g.c = CHARS[Math.floor(Math.random() * CHARS.length)];
+      gctx.fillStyle = `rgba(240,240,248,${(g.a * gAlpha * (0.6 + 0.4 * Math.sin(g.t))).toFixed(3)})`; gctx.fillText(g.c, g.x, g.y); } }
+}
+
+// ================= nokta akışı: bölüm geçişlerinde kaydırma hızına göre çapraz sprey =================
+const flow = document.getElementById("flow"), fctx = flow.getContext("2d");
+let dots = [], vel = 0, flowAlpha = 0;
+function fResize() { const d = Math.min(devicePixelRatio || 1, 2); flow.width = innerWidth * d; flow.height = innerHeight * d; fctx.setTransform(d, 0, 0, d, 0, 0);
+  dots = Array.from({ length: isMobile ? 260 : 620 }, () => ({ x: Math.random() * innerWidth, y: Math.random() * innerHeight, r: .6 + Math.random() * 1.6, k: .3 + Math.random() })); }
+fResize(); addEventListener("resize", fResize);
+if (lenis) lenis.on("scroll", e => { vel = e.velocity; });
+ScrollTrigger.create({ trigger: ".method-intro", start: "top 90%", end: "bottom 10%", onUpdate: s => flowAlpha = Math.sin(s.progress * Math.PI) });
+function fTick() { fctx.clearRect(0, 0, innerWidth, innerHeight); const a = Math.min(1, flowAlpha * 1.2); if (a < .01) return;
+  const sp = Math.max(-40, Math.min(40, vel)); fctx.fillStyle = `rgba(255,255,255,${0.85 * a})`;
+  for (const p of dots) { p.x += (1.2 + Math.abs(sp) * .9) * p.k; p.y -= (0.4 + sp * .6) * p.k;
+    if (p.x > innerWidth + 10) p.x = -10; if (p.y < -10) p.y = innerHeight + 10; if (p.y > innerHeight + 10) p.y = -10;
+    fctx.beginPath(); fctx.arc(p.x, p.y, p.r, 0, 6.283); fctx.fill(); } vel *= .92; }
+
+// ================= mürekkep kenarı: kaydırdıkça yükselen yırtık kâğıt =================
+const inkPath = document.getElementById("inkPath");
+function inkShape(t) { // t: 0..1 → kenar yüksekliği ve dalga
+  const pts = []; const N = 48;
+  for (let i = 0; i <= N; i++) { const x = i / N * 1440, n = Math.sin(i * 1.7 + t * 4) * 14 + Math.sin(i * .37 + t * 2) * 26 + Math.sin(i * 5.1) * 7 + (i % 3 === 0 ? Math.sin(i * 9.3) * 18 : 0);
+    pts.push([x, 320 - t * 230 + n]); }
+  return `M0,320 L0,${pts[0][1]} ` + pts.map(p => `L${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ") + " L1440,320 Z";
+}
+inkPath.setAttribute("d", inkShape(0.2));
+ScrollTrigger.create({ trigger: ".ink", start: "top bottom", end: "top 30%", scrub: true, onUpdate: s => inkPath.setAttribute("d", inkShape(0.2 + s.progress * 0.8)) });
+
+// ================= sabitlenen yatay yöntem =================
+const htrack = document.getElementById("htrack"), stepper = document.getElementById("stepper");
+htrack.innerHTML = STEPS.map(([h, lead, items], i) => `<article class="panel" data-i="${i}"><div class="ghost">${String(i + 1).padStart(2, "0")}</div><div class="inner"><h3>${h}<span class="accent">.</span></h3><p class="lead">${lead}</p><ul>${items.map(x => `<li>${x}</li>`).join("")}</ul></div></article>`).join("");
+stepper.innerHTML = STEPS.map(([h], i) => `<span title="${h}">${h[0]}</span>`).join("<i></i>");
+const panels = [...document.querySelectorAll(".panel")];
+const shades = ["#f0f0f8", "#e4e4ec", "#d2d2da", "#b9b9c1", "#151515"], inks = ["#171717", "#171717", "#171717", "#171717", "#f0f0f8"];
+if (!reduced) {
+  const tl = gsap.timeline({ scrollTrigger: { trigger: "#hwrap", pin: true, scrub: 0.6, start: "top top", end: () => "+=" + innerWidth * 4,
+  } });
+  tl.to(htrack, { x: () => -innerWidth * 4, ease: "none" }, 0);
+  shades.forEach((c, i) => { if (i) tl.to("#hwrap", { backgroundColor: c, color: inks[i], duration: .25, ease: "none" }, (i - .5) / 4); });
+} else { htrack.style.width = "100%"; htrack.style.flexDirection = "column"; document.getElementById("hwrap").style.height = "auto"; }
+document.querySelector(".panel").classList.add("in");
+
+// ================= sizi ne yavaşlatıyor =================
+const chips = document.getElementById("chips"), map = document.getElementById("map"), sel = new Set();
+chips.innerHTML = FRICTION.map(([f], i) => `<button class="chip" data-i="${i}" aria-pressed="false">${f}</button>`).join("");
+chips.addEventListener("click", e => { const b = e.target.closest(".chip"); if (!b) return; const i = +b.dataset.i; sel.has(i) ? sel.delete(i) : sel.add(i); b.classList.toggle("on"); b.setAttribute("aria-pressed", sel.has(i));
+  map.innerHTML = "<h4>Akış haritası</h4>" + (sel.size ? [...sel].map(k => `<div class="row"><span>${FRICTION[k][0]}</span><span>→</span><span><b>${FRICTION[k][1]}</b><br><small style="color:var(--faint)">${FRICTION[k][2]}</small></span></div>`).join("")
+    + `<p style="margin:18px 0 0"><a class="pill solid" href="#talk">Bu haritayı gönder →</a></p>` : `<p class="empty">Soldan en az bir sürtünme seçin.</p>`); });
+
+// ================= kapanış: imleçten kaçan nokta alanı =================
+const field = document.getElementById("field"), fx = field.getContext("2d"); let fpts = [], mouse = { x: -1e4, y: -1e4 }, fVisible = false;
+function fieldResize() { const r = field.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); field.width = r.width * d; field.height = r.height * d; fx.setTransform(d, 0, 0, d, 0, 0);
+  fpts = []; const g = isMobile ? 22 : 18; for (let y = g / 2; y < r.height; y += g) for (let x = g / 2; x < r.width; x += g) fpts.push({ x, y, ox: x, oy: y }); }
+fieldResize(); addEventListener("resize", fieldResize);
+field.parentElement.addEventListener("pointermove", e => { const r = field.getBoundingClientRect(); mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top; });
+field.parentElement.addEventListener("pointerleave", () => { mouse.x = mouse.y = -1e4; });
+new IntersectionObserver(([e]) => fVisible = e.isIntersecting).observe(field);
+function fieldTick(t) { if (!fVisible) return; const r = field.getBoundingClientRect(); fx.clearRect(0, 0, r.width, r.height);
+  for (const p of fpts) { const dx = p.x - mouse.x, dy = p.y - mouse.y, d2 = dx * dx + dy * dy, R = 140;
+    if (d2 < R * R) { const d = Math.sqrt(d2) || 1, f = (1 - d / R) * 18; p.x += dx / d * f * .15; p.y += dy / d * f * .15; }
+    p.x += (p.ox - p.x) * .08; p.y += (p.oy - p.y) * .08; const w = .5 + .5 * Math.sin(t * .0012 + p.ox * .02 + p.oy * .015);
+    fx.fillStyle = `rgba(240,240,248,${.06 + w * .14})`; fx.fillRect(p.x - .9, p.y - .9, 1.8, 1.8); } }
+
+// ================= footer: ofisler ve canlı saat =================
+const OFFICES = [["İstanbul", "Europe/Istanbul"], ["Londra", "Europe/London"], ["Dubai", "Asia/Dubai"]];
+function clocks() { document.getElementById("offices").innerHTML = OFFICES.map(([c, tz]) => `<span><span class="dot">●</span> ${c} · ${new Intl.DateTimeFormat("tr-TR", { hour: "2-digit", minute: "2-digit", timeZone: tz }).format(new Date())}</span>`).join(""); }
+clocks(); setInterval(clocks, 30000); document.getElementById("yr").textContent = new Date().getFullYear();
+
+// ================= küre: noktalı dünya + İstanbul ağ yayları + ışık paketleri =================
+const gcan = document.getElementById("globe");
+let globeTick = () => {};
+try {
+  const R = 1, renderer = new THREE.WebGLRenderer({ canvas: gcan, alpha: true, antialias: false, powerPreference: "high-performance" });
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.75));
+  const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(40, 1, .1, 50); camera.position.z = 3.6;
+  const world = new THREE.Group(); scene.add(world);
+  const ll = (lat, lon, r = R) => { const p = (90 - lat) * Math.PI / 180, t = (lon + 180) * Math.PI / 180; return new THREE.Vector3(-r * Math.sin(p) * Math.cos(t), r * Math.cos(p), r * Math.sin(p) * Math.sin(t)); };
+  // kıtalar: harita verisi gömmeden, 3B gürültüden üretilmiş kara kütleleri (fibonacci küre üzerinde)
+  const hash = (x, y, z) => { const s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453; return s - Math.floor(s); };
+  const vnoise = (x, y, z) => { const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z), fx = x - ix, fy = y - iy, fz = z - iz, u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy), w = fz * fz * (3 - 2 * fz);
+    const L = (a, b, t) => a + (b - a) * t, h = (a, b, c) => hash(ix + a, iy + b, iz + c);
+    return L(L(L(h(0,0,0), h(1,0,0), u), L(h(0,1,0), h(1,1,0), u), v), L(L(h(0,0,1), h(1,0,1), u), L(h(0,1,1), h(1,1,1), u), v), w); };
+  const fbm = p => { let s = 0, a = .5, f = 1.6; for (let o = 0; o < 4; o++) { s += a * vnoise(p.x * f + 11, p.y * f + 7, p.z * f + 3); a *= .5; f *= 2.1; } return s; };
+  const N = isMobile ? 14000 : 30000, pos = [], acc = [], al = [];
+  const hqv = ll(...HQ);
+  for (let i = 0; i < N; i++) { const y = 1 - (i / (N - 1)) * 2, r = Math.sqrt(1 - y * y), th = i * 2.399963229728653, p = new THREE.Vector3(Math.cos(th) * r, y, Math.sin(th) * r);
+    const land = fbm(p) + (p.distanceTo(hqv) < .35 ? .08 : 0); if (land < .5) continue;   // yalnız kara noktaları
+    pos.push(p.x, p.y, p.z); acc.push(p.distanceTo(hqv) < .06 ? 1 : 0); al.push(.55 + Math.random() * .45); }
+  const pg = new THREE.BufferGeometry(); pg.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); pg.setAttribute("aAccent", new THREE.Float32BufferAttribute(acc, 1)); pg.setAttribute("aAlpha", new THREE.Float32BufferAttribute(al, 1));
+  const pm = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { uColor: { value: new THREE.Color("#f0f0f8") }, uAccentColor: { value: new THREE.Color("#ff6a00") }, uPR: { value: renderer.getPixelRatio() } },
+    vertexShader: `attribute float aAccent; attribute float aAlpha; uniform float uPR; varying float vAlpha; varying float vAccent;
+      void main(){ vec4 mv = modelViewMatrix * vec4(position,1.); gl_Position = projectionMatrix * mv; vec3 n = normalize(normalMatrix * position);
+        float front = smoothstep(-.15, .45, n.z); vAlpha = aAlpha * mix(.12, .95, front); vAccent = aAccent; gl_PointSize = (2.1 + aAccent * 2.5) * uPR; }`,
+    fragmentShader: `uniform vec3 uColor, uAccentColor; varying float vAlpha, vAccent;
+      void main(){ float d = length(gl_PointCoord - .5); float disc = 1. - smoothstep(.14, .5, d); if (disc < .004) discard; gl_FragColor = vec4(mix(uColor, uAccentColor, vAccent), disc * vAlpha); }` });
+  world.add(new THREE.Points(pg, pm));
+  // atmosfer: kenar parıltısı
+  const rim = new THREE.Mesh(new THREE.SphereGeometry(1.05, 64, 64), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.BackSide,
+    uniforms: { uColor: { value: new THREE.Color("#8fa6ff") }, uIntensity: { value: .55 } },
+    vertexShader: `varying vec3 vN, vV; void main(){ vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position,1.); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `uniform vec3 uColor; uniform float uIntensity; varying vec3 vN, vV; void main(){ float rim = pow(1. - abs(dot(vV, normalize(vN))), 3.5); gl_FragColor = vec4(uColor, rim * uIntensity); }` }));
+  scene.add(rim);
+  // yaylar: büyük çember + yükseklik; her yay kendi periyodunda tek ışık paketi taşır
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone, vis = CITIES[tz] && tz !== "Europe/Istanbul" ? CITIES[tz] : null;
+  const arcMat = (color, base) => new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { uTime: { value: 0 }, uArcProgress: { value: 0 }, uMotion: { value: reduced ? 0 : 1 }, uColor: { value: new THREE.Color(color) }, uBase: { value: base } },
+    vertexShader: `attribute float aArcT, aOffset, aSpeed; varying float vT, vOff, vSpeed, vFront;
+      void main(){ vec4 mv = modelViewMatrix * vec4(position,1.); vec3 n = normalize(normalMatrix * position); vFront = smoothstep(-.2, .4, n.z); vT = aArcT; vOff = aOffset; vSpeed = aSpeed; gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `uniform float uTime, uArcProgress, uMotion, uBase; uniform vec3 uColor; varying float vT, vOff, vSpeed, vFront;
+      void main(){ float reveal = clamp((uArcProgress - vT * .85) / .15, 0., 1.);
+        float cyc = fract(uTime * vSpeed + vOff); float run = step(cyc, .2); float tr = clamp(cyc / .2, 0., 1.); float tt = tr * tr * (3. - 2. * tr);
+        float d = tt - vT; float beam = (d >= 0. ? exp(-d * 40.) : 0.) * run; float gate = smoothstep(.85, 1., uArcProgress) * uMotion;
+        gl_FragColor = vec4(uColor, (uBase + beam * .9 * gate) * reveal * mix(.25, 1., vFront)); }` });
+  const arcs = [];
+  const addArc = (to, color, base) => { const a = ll(...HQ), b = ll(...to), SEG = 96, P = [], T = [], O = [], S = [], off = Math.random(), spd = 1 / (18 + Math.random() * 12), lift = .12 + a.distanceTo(b) * .22;
+    for (let i = 0; i <= SEG; i++) { const t = i / SEG, p = new THREE.Vector3().copy(a).lerp(b, t).normalize().multiplyScalar(R + Math.sin(Math.PI * t) * lift); P.push(p.x, p.y, p.z); T.push(t); O.push(off); S.push(spd); }
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3)); g.setAttribute("aArcT", new THREE.Float32BufferAttribute(T, 1)); g.setAttribute("aOffset", new THREE.Float32BufferAttribute(O, 1)); g.setAttribute("aSpeed", new THREE.Float32BufferAttribute(S, 1));
+    const m = arcMat(color, base); const line = new THREE.Line(g, m); world.add(line); arcs.push(m); return b; };
+  DEST.forEach(d => addArc(d, "#ffffff", .3));
+  const visPos = vis ? addArc([vis[1], vis[2]], "#ff6a00", .55) : null;
+  // etiketler: 3B konumdan ekrana
+  const hqL = document.getElementById("hqLabel"), visL = document.getElementById("visLabel"); if (vis) visL.textContent = `${vis[0]} · siz`; else visL.style.display = "none";
+  // döndürme: zamana bağlı (kare hızından bağımsız). Sürüklemede açısal hız ölçülür; bırakınca üstel sönümle suyun akışı gibi yavaşlar.
+  let rotY = -(HQ[1] + 180) * Math.PI / 180 + Math.PI / 2 + .35, rotX = .32, velY = 0, velX = 0, drag = null; const SPIN = .07, BASE_X = .32;
+  gcan.addEventListener("pointerdown", e => { drag = { x: e.clientX, y: e.clientY, t: performance.now() }; velY = velX = 0; gcan.setPointerCapture(e.pointerId); });
+  gcan.addEventListener("pointermove", e => { if (!drag) return; const now = performance.now(), dt = Math.max(8, now - drag.t) / 1000;
+    const dy = (e.clientX - drag.x) * .0055, dx = (e.clientY - drag.y) * .0045; rotY += dy; rotX = Math.max(-.6, Math.min(.9, rotX + dx));
+    velY = velY * .6 + (dy / dt) * .4; velX = velX * .6 + (dx / dt) * .4; drag = { x: e.clientX, y: e.clientY, t: now }; });
+  const endDrag = () => { drag = null; }; gcan.addEventListener("pointerup", endDrag); gcan.addEventListener("pointercancel", endDrag);
+  // etiket konumu için tuval ölçüsü yalnız boyut/kaydırma değişince alınır (her karede ölçüm = zorunlu yeniden yerleşim = takılma)
+  let gRect = { left: 0, top: 0, width: 1, height: 1 }, heroRect = { left: 0, top: 0 };
+  const measure = () => { const r = gcan.getBoundingClientRect(), h = gcan.parentElement.getBoundingClientRect(); gRect = { left: r.left - h.left, top: r.top - h.top, width: r.width, height: r.height }; };
+  const size = () => { measure(); renderer.setSize(gRect.width, gRect.height, false); camera.aspect = gRect.width / gRect.height || 1; camera.updateProjectionMatrix(); };
+  size(); addEventListener("resize", size);
+  hqL.style.left = visL.style.left = "0px"; hqL.style.top = visL.style.top = "0px"; hqL.style.willChange = visL.style.willChange = "transform, opacity";
+  const tmp = new THREE.Vector3();
+  const place = (el, v) => { tmp.copy(v).applyMatrix4(world.matrixWorld); const front = tmp.z / tmp.length() > .1; tmp.project(camera);
+    el.style.transform = `translate3d(${(gRect.left + (tmp.x + 1) / 2 * gRect.width + 10).toFixed(1)}px, ${(gRect.top + (1 - tmp.y) / 2 * gRect.height - 10).toFixed(1)}px, 0)`; el.style.opacity = front ? 1 : 0; };
+  let visible = true; new IntersectionObserver(([e]) => visible = e.isIntersecting).observe(gcan);
+  const start = performance.now(); let progress = 0, last = start;
+  globeTick = (now) => { const dt = Math.min(.05, (now - last) / 1000); last = now; if (!visible) return; const t = (now - start) / 1000;
+    if (!drag && !reduced) {
+      const k = Math.exp(-dt * 2.2);                       // bırakınca ~1.5 sn'de akıcı yavaşlama
+      velY *= k; velX *= k; rotY += (SPIN + velY) * dt; rotX += velX * dt;
+      rotX += (BASE_X - rotX) * (1 - Math.exp(-dt * 1.2));   // eğim yavaşça varsayılana döner
+      rotX = Math.max(-.6, Math.min(.9, rotX));
+    }
+    world.rotation.set(rotX, rotY, 0); progress = Math.min(1, progress + (reduced ? 1 : dt * .36));
+    for (const m of arcs) { m.uniforms.uTime.value = t; m.uniforms.uArcProgress.value = progress; }
+    renderer.render(scene, camera); world.updateMatrixWorld(); place(hqL, hqv); if (visPos) place(visL, visPos); };
+} catch (e) { gcan.style.display = "none"; }
+
+// yatay şeridin GERÇEK konumundan aktif panel (kaydırma oranı yumuşatma yüzünden şeritten sapabilir)
+const stepDots = [...stepper.querySelectorAll("span")]; let lastStep = -1;
+function methodTick() { const f = -(gsap.getProperty(htrack, "x") || 0) / innerWidth, i = Math.max(0, Math.min(4, Math.round(f)));
+  if (i !== lastStep) { stepDots.forEach((el, k) => el.classList.toggle("on", k === i)); lastStep = i; }
+  panels.forEach((el, k) => { if (k - f < .55) el.classList.add("in"); }); }
+
+// ================= tek döngü =================
+gsap.ticker.add(() => { methodTick(); dTick(performance.now()); const now = performance.now(); gTick(); fTick(); fieldTick(now); globeTick(now); });
+if (reduced) { gTick(); fieldTick(performance.now()); document.querySelectorAll(".panel").forEach(p => p.classList.add("in")); }
+</script>
+</body>
+</html>
